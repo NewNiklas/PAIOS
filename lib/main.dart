@@ -181,7 +181,7 @@ class MyAppState extends State<MyApp> {
                     : engine.prompt.text.isEmpty?Container():cards.cardGroup([
                       cardContents.tap(
                           title: "Generate",
-                          subtitle: engine.isInitialized?engine.isError?"":"Responded in ${((engine.response.generationTimeMs??10)/1000).toStringAsFixed(2)}s, using ${engine.response.tokenCount} tokens (${(engine.response.tokenCount!.toInt()/((engine.response.generationTimeMs??10)/1000)).toStringAsFixed(2)} token/s).":"Initialize with current settings and generate",
+                          subtitle: engine.isInitialized?engine.responseText=""?"":engine.isError?"":"Responded in ${((engine.response.generationTimeMs??10)/1000).toStringAsFixed(2)}s, using ${engine.response.tokenCount} tokens (${(engine.response.tokenCount!.toInt()/((engine.response.generationTimeMs??10)/1000)).toStringAsFixed(2)} token/s).":"Initialize with current settings and generate",
                           action: (){engine.generateStream();},
                       )
                     ]),
