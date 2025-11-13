@@ -177,21 +177,17 @@ class MyAppState extends State<MyApp> {
                       ),
                     ),
                     engine.isLoading
-                    ? Container()
+                    ? cardContents.static(
+                      title: "Generating...",
+                      subtitle: engine.isInitialized?engine.responseText==""?"":engine.isError?"":"Generating, ${((engine.response.generationTimeMs??10)/1000).toStringAsFixed(2)}s, using ${engine.response.tokenCount} tokens (${(engine.response.tokenCount!.toInt()/((engine.response.generationTimeMs??10)/1000)).toStringAsFixed(2)} token/s).":"Initialize with current settings and generate",
+                    )
                     : engine.prompt.text.isEmpty?Container():cards.cardGroup([
                       cardContents.tap(
                           title: "Generate",
-                          subtitle: engine.isInitialized?engine.responseText=""?"":engine.isError?"":"Responded in ${((engine.response.generationTimeMs??10)/1000).toStringAsFixed(2)}s, using ${engine.response.tokenCount} tokens (${(engine.response.tokenCount!.toInt()/((engine.response.generationTimeMs??10)/1000)).toStringAsFixed(2)} token/s).":"Initialize with current settings and generate",
+                          subtitle: engine.isInitialized?engine.responseText==""?"":engine.isError?"":"Responded in ${((engine.response.generationTimeMs??10)/1000).toStringAsFixed(2)}s, using ${engine.response.tokenCount} tokens (${(engine.response.tokenCount!.toInt()/((engine.response.generationTimeMs??10)/1000)).toStringAsFixed(2)} token/s).":"Initialize with current settings and generate",
                           action: (){engine.generateStream();},
                       )
                     ]),
-                    engine.isLoading
-                        ? Padding(
-                        padding: EdgeInsetsGeometry.all(20),
-                    child: LinearProgressIndicator(
-                      borderRadius: BorderRadiusGeometry.circular(15),
-                    ),)
-                        : Container(),
                     if (engine.responseText.isNotEmpty)
                       Expanded(
                         child: Card(
