@@ -54,6 +54,16 @@ class FlutterLocalAiPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Stre
 
     override fun onMethodCall(call: MethodCall, result: Result) {
         when (call.method) {
+            "getModelInfo" -> {
+                coroutineScope.launch {
+                    try {
+                        val info = getModelInfo()
+                        result.success(info)
+                    } catch (e: Exception) {
+                        result.error("GET_MODEL_INFO_ERROR", e.message, null)
+                    }
+                }
+            }
             "init" -> {
                 instructions = call.argument("instructions")
                 coroutineScope.launch {
@@ -82,6 +92,49 @@ class FlutterLocalAiPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Stre
             }
         }
     }
+
+    private suspend fun getModelInfo(): Map<String, String> = withContext(Dispatchers.IO) {
+        try {
+            if (generativeModel == null) {
+                generativeModel = com.google.mlkit.genai.prompt.Generation.getClient()
+            }
+
+            // 1. Get Status
+            val status = generativeModel!!.checkStatus()
+            val statusString = when (status) {
+                FeatureStatus.AVAILABLE -> "Available"
+                FeatureStatus.UNAVAILABLE -> "Unavailable"
+                FeatureStatus.DOWNLOADING -> "Downloading"
+                FeatureStatus.DOWNLOADABLE -> "Downloadable"
+                else -> "Unknown"
+            }
+
+            // 2. Get Base Model Name (Version)
+            // This will only work if the model is available.
+            var modelVersion = "Unknown"
+            if (status == FeatureStatus.AVAILABLE) {
+                try {
+                    // This is the call you found in the documentation
+                    modelVersion = generativeModel!!.getBaseModelName() ?: "Unknown"
+                } catch (e: Exception) {
+                    // Could fail if model is not ready, etc.
+                    Log.w("FlutterLocalAi", "Could not get base model name: ${e.message}")
+                }
+            }
+
+            mapOf(
+                "status" to statusString,
+                "version" to modelVersion
+            )
+        } catch (e: Exception) {
+            android.util.Log.e("FlutterLocalAi", "getModelInfo error: ${e.javaClass.simpleName} - ${e.message}", e)
+            mapOf(
+                "status" to "Error",
+                "version" to (e.message ?: "Unknown error")
+            )
+        }
+    }
+
 
     override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
         if (events == null) return

@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
+import 'package:geminilocal/pages/intro.dart';
 import 'package:provider/provider.dart';
 import 'engine.dart';
 import 'elements.dart';
@@ -29,7 +30,7 @@ class MyAppState extends State<MyApp> {
     super.initState();
     WidgetsFlutterBinding.ensureInitialized();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      Provider.of<aiEngine>(context, listen: false).initEngine();
+      Provider.of<aiEngine>(context, listen: false).checkAvailability();
     });
   }
   Widget build(BuildContext context) {
@@ -98,6 +99,7 @@ class MyAppState extends State<MyApp> {
                 ),
               );
             }
+            return introPage();
             return Scaffold(
               body: SafeArea(
                 child: Column(

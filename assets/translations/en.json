@@ -1,0 +1,9 @@
+{
+  "next": "Next",
+  "done":"Done",
+  "language_select": "Select your language",
+  "welcome_title": "Gemini Nano",
+  "welcome_desc": "",
+  "desc_title": "",
+  "desc_desc": "This application allows you have conversations with your on-device model of Gemini Nano. It is free and offline, but Gemini Nano is the smallest of Gemini family. Unfortunately either your device doesn't support Gemini Nano or the Google AICore is unavailable to the app. This may be because your device has it's bootloader unlocked or the app"
+}

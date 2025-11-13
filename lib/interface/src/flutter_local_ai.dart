@@ -13,6 +13,20 @@ class FlutterLocalAi {
   static const EventChannel _eventChannel =
   EventChannel('flutter_local_ai_events'); // <-- Renamed!
 
+  Future<Map<String, String>> getModelInfo() async {
+    try {
+      final Map<dynamic, dynamic>? info =
+      await _methodChannel.invokeMethod('getModelInfo');
+      if (info == null) {
+        return {'status': 'Error', 'version': 'Null response from platform'};
+      }
+      // Convert from Map<dynamic, dynamic> to Map<String, String>
+      return info.map((key, value) =>
+          MapEntry(key.toString(), value.toString()));
+    } catch (e) {
+      return {'status': 'Error', 'version': e.toString()};
+    }
+  }
   /// Initializes the AI module.
   Future<String?> init({String? instructions}) async {
     final String? status = await _methodChannel.invokeMethod(

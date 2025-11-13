@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart' as md;
 import 'package:geminilocal/interface/flutter_local_ai.dart';
+import 'package:geminilocal/translator.dart';
 
 import 'gemini.dart';
 
@@ -11,6 +12,7 @@ class aiEngine with md.ChangeNotifier {
   final prompt = md.TextEditingController();
   final instructions = md.TextEditingController();
 
+  Dictionary dict = Dictionary();
   late AiResponse response;
   String responseText = "";
   bool isLoading = false;
@@ -23,10 +25,17 @@ class aiEngine with md.ChangeNotifier {
   // Config
   int tokens = 256; // Increased default
   double temperature = 0.7;
+  Map modelInfo = {};
 
   /// Subscription to manage the active AI stream
   StreamSubscription<AiEvent>? _aiSubscription;
 
+  Future<void> checkAvailability() async {
+    await dict.setup();
+    dict.saveLanguage("uk");
+    modelInfo = await gemini.getModelInfo();
+    notifyListeners();
+    }
   /// Call this from your UI (e.g., in initState) to start the engine.
   Future<void> initEngine() async {
     if (isInitializing || isInitialized) return;
