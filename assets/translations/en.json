@@ -19,11 +19,18 @@
   "instructions_hint": "E.g., 'You are a helpful assistant.'",
   "ai_may_not_differ_prompt_and_instructions": "Gemini may not differentiate between prompt and instructions.",
   "prompt": "Prompt",
-  "prompt_hint": "E.g., 'Write a poem about AI in the style of Shakespeare.'",
+  "prompt_hint": "E.g., 'Tell me about yourself.'",
   "no_context_yet": "There is no context (YET!), each response is standalone",
   "generate": "Generate",
   "cancel_generate": "Stop generating",
   "generating_hint": "Generating, %seconds%s, using %tokens% tokens (%tokenspersec%) token/s).",
   "generated_hint": "Responded in %seconds%s, using %tokens% tokens (%tokenspersec%) token/s).",
-  "settings": "Settings"
+  "settings": "Settings",
+  "settings_status": "Model status",
+  "settings_app": "App settings",
+  "settings_ai": "Model parameters",
+  "settings_resources": "Additional resources",
+  "share": "Share",
+  "clear_context": "Clear context",
+  "waiting_for_AI": "Waiting for Gemini to start generating. If you see this message for longer than expected, this could mean either some error occurred with ML Kit or you've hit the quota (in which case just wait a minute and try again)."
 }

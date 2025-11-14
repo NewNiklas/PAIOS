@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 
 
 class Cards {
@@ -387,5 +388,270 @@ class cardContents {
         ],
       ),
     );
+  }
+}
+
+class divider {
+  static Widget settings({
+    required String title,
+    required BuildContext context
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 20, left: 20, right: 20, bottom: 10),
+      child: Text(
+        title,
+        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+          color: Theme.of(context).colorScheme.primary,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
+}
+
+
+
+class text {
+  static Widget info({
+    required String title,
+    required String subtitle,
+    required VoidCallback action,
+    required BuildContext context
+  }) {
+    double width = (WidgetsBinding.instance.platformDispatcher.views.first.physicalSize / WidgetsBinding.instance.platformDispatcher.views.first.devicePixelRatio).width;
+    return Padding(
+      padding: EdgeInsetsGeometry.only(
+          bottom: 50,
+          left: 20,
+          right: 20,
+          top: 10
+      ),
+      child: Container(
+          width: width - 40,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.info_outline_rounded,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                size: 24,
+              ),
+              const SizedBox(height: 20),
+              Text(
+                title,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+              subtitle == ""?Container():const SizedBox(height: 5),
+              subtitle == ""?Container():InkWell(
+                onTap: action,
+                child: Text(
+                  title,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.bold,
+                      decoration: TextDecoration.underline
+                  ),
+                ),
+              )
+            ],
+          )
+      ),
+    );
+  }
+  Widget userMessage (String text, BuildContext context, double width){
+    return Padding(
+      padding: EdgeInsetsGeometry.only(
+          bottom: 50,
+          left: 20,
+          right: 20,
+          top: 10
+      ),
+      child: Container(
+          width: width - 40,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.info_outline_rounded,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                size: 24,
+              ),
+              const SizedBox(height: 20),
+              Text(
+                text,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          )
+      ),
+    );
+  }
+  List<Widget> chatlog({
+    required String aiChunk,
+    required String lastUser,
+    required String conversation,
+    required BuildContext context
+  }) {
+    double width = (WidgetsBinding.instance.platformDispatcher.views.first.physicalSize / WidgetsBinding.instance.platformDispatcher.views.first.devicePixelRatio).width;
+    List<Widget> splits = [];
+    List<Widget> YES = conversation.split("\nPROMPT: ").map((prompt){
+      String userMessage = prompt.split("\nRESPONSE: ")[0];
+      String AIMessage = prompt.replaceAll(userMessage, "").replaceAll("\nRESPONSE: ", "");
+      if(!(lastUser == userMessage) && !(userMessage == "")) {
+        splits.add(
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Padding(
+                  padding: EdgeInsetsGeometry.only(
+                      bottom: 10,
+                      top: 10
+                  ),
+                  child: Card(
+                    elevation: 0,
+                    color: Theme.of(context).colorScheme.onSecondaryContainer,
+                    clipBehavior: Clip.hardEdge,
+                    child: Padding(
+                      padding: EdgeInsetsGeometry.symmetric(
+                          vertical: 10,
+                          horizontal: 15
+                      ),
+                      child: Container(
+                        constraints: BoxConstraints(
+                            maxWidth: width - 200,
+                            minWidth: 0
+                        ),
+                        child: Flexible(
+                          child: Text(
+                            userMessage,
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onSecondary,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                )
+              ],
+            )
+      );
+      }
+      if(!(aiChunk == AIMessage) && !(AIMessage == "")) {
+        splits.add(
+            Row(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: EdgeInsetsGeometry.only(
+                      bottom: 10,
+                      top: 10
+                  ),
+                  child: Card(
+                    elevation: 0,
+                    clipBehavior: Clip.hardEdge,
+                    child: Padding(
+                      padding: EdgeInsetsGeometry.symmetric(
+                          vertical: 10,
+                          horizontal: 15
+                      ),
+                      child: Container(
+                        constraints: BoxConstraints(
+                            maxWidth: width - 150,
+                            minWidth: 0.0
+                        ),
+                        child: Flexible(
+                          child: MarkdownBody(
+                            selectable: true,
+                            data: AIMessage,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                )
+              ],
+            )
+      );
+      }
+    }).toList().cast<Widget>();
+    splits.add(
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            Padding(
+              padding: EdgeInsetsGeometry.only(
+                  bottom: 10,
+                  top: 10
+              ),
+              child: Card(
+                elevation: 0,
+                color: Theme.of(context).colorScheme.onSecondaryContainer,
+                clipBehavior: Clip.hardEdge,
+                child: Padding(
+                  padding: EdgeInsetsGeometry.symmetric(
+                      vertical: 10,
+                      horizontal: 15
+                  ),
+                  child: Container(
+                    constraints: BoxConstraints(
+                        maxWidth: width - 200,
+                        minWidth: 0
+                    ),
+                    child: Flexible(
+                      child: Text(
+                        lastUser,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSecondary,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            )
+          ],
+        )
+    );
+    splits.add(
+        Row(
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
+            Padding(
+              padding: EdgeInsetsGeometry.only(
+                  bottom: 10,
+                  top: 10
+              ),
+              child: Card(
+                elevation: 0,
+                clipBehavior: Clip.hardEdge,
+                child: Padding(
+                  padding: EdgeInsetsGeometry.symmetric(
+                      vertical: 10,
+                      horizontal: 15
+                  ),
+                  child: Container(
+                    constraints: BoxConstraints(
+                        maxWidth: width - 150,
+                        minWidth: 0.0
+                    ),
+                    child: Flexible(
+                      child: MarkdownBody(
+                        selectable: true,
+                        data: aiChunk,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            )
+          ],
+        )
+    );
+    return splits;
   }
 }

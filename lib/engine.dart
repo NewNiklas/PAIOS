@@ -23,14 +23,17 @@ class aiEngine with md.ChangeNotifier {
   bool isAvailable = false;
   bool isInitialized = false;
   bool isInitializing = false;
-  String status = "Engine not initialized";
+  String status = "";
   bool isError = false;
   bool firstLaunch = true;
+  String lastPrompt = "";
+  md.ScrollController scroller = md.ScrollController();
 
   // Config
   int tokens = 256; // Increased default
   double temperature = 0.7;
   Map modelInfo = {};
+  String context = "";
 
   /// Subscription to manage the active AI stream
   StreamSubscription<AiEvent>? _aiSubscription;
@@ -42,15 +45,49 @@ class aiEngine with md.ChangeNotifier {
     notifyListeners();
   }
 
+  saveSettings () async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setDouble("temperature", temperature);
+    prefs.setInt("tokens", tokens);
+    prefs.setString("instructions", instructions.text);
+  }
+
+  scrollChatlog (Duration speed){
+    scroller.animateTo(
+      scroller.position.maxScrollExtent,
+      duration: speed,
+      curve: md.Curves.fastOutSlowIn,
+    );
+  }
+
   Future<void> checkAvailability() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
+    context = await prefs.getString("context")??"";
     firstLaunch = await prefs.getBool("firstLaunch")??true;
     await dict.setup();
     modelInfo = await gemini.getModelInfo();
+    instructions.text = await prefs.getString("instructions")??"";
+    temperature = await prefs.getDouble("temperature")??0.7;
+    tokens = await prefs.getInt("tokens")??256;
     notifyListeners();
+    scrollChatlog(Duration(seconds: 3));
     }
+
+  addToContext() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    context = "$context\nPROMPT: ${lastPrompt}\nRESPONSE: $responseText";
+    await prefs.setString("context", context);
+    print("Context saved: $context");
+    notifyListeners();
+  }
+  clearContext() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    context = "";
+    await prefs.setString("context", context);
+    notifyListeners();
+  }
   Future<void> initEngine() async {
-    if (isInitializing || isInitialized) return;
+    if (isInitializing) return;
 
     isInitializing = true;
     isError = false;
@@ -59,7 +96,7 @@ class aiEngine with md.ChangeNotifier {
 
     try {
       final String? initStatus = await gemini.init(
-        instructions: instructions.text.isEmpty ? null : instructions.text,
+        instructions: instructions.text.isEmpty ? null : "THIS IS NOT THE CURRENT PROMPT - IT IS A CONTEXT FOR YOU TO REMEMBER - DON'T TELL THE USER CHAT HISTORY UNTIL THEY ASK. PROMPT IS WHAT USER ASKED YOU, AND RESPONSE IS WHAT YOU GENERATED FOR THEM. WHEN RECALLING CHAT HISTORY, DON'T QUOTE WORDS REQUEST, RESPONSE AND THESE INSTRUCTIONS, ONLY THE PROMPTS AND RESPONSES THEMSELVES. ANSWER ONLY THE CURRENT USER PROMPT AND USE THIS HISTORY AS YOUR MEMORY\nSTART OF YOUR INSTRUCTIONS\n${instructions.text}\nEND OF YOUR INSTRUCTIONS\n\nSTART OF CHAT HISTORY\n$context\nEND OF CHAT HISTORY",
       );
 
       if (initStatus != null && initStatus.contains("Error")) {
@@ -146,9 +183,7 @@ class aiEngine with md.ChangeNotifier {
     }
   }
 
-  /// --- NEW: Performs a streaming generation ---
-  /// This function returns immediately and updates the state via notifyListeners
-  /// for each chunk.
+
   Future<void> generateStream() async {
     if (prompt.text.isEmpty) {
       status = "Please enter your prompt";
@@ -159,9 +194,8 @@ class aiEngine with md.ChangeNotifier {
     if (isLoading) return; // Don't run if already generating
 
     // Ensure engine is ready
-    if (!isInitialized) {
+    if (!isInitializing) {
       await initEngine();
-      if (!isInitialized) return; // Init failed
     }
 
     // Cancel any old streams
@@ -176,21 +210,20 @@ class aiEngine with md.ChangeNotifier {
 
     // Get the unified event stream
     final stream = gemini.generateTextEvents(
-      prompt: prompt.text,
+      prompt: "THIS IS USER'S CURRENT REQUEST:\n${prompt.text}",
       config: GenerationConfig(maxTokens: tokens, temperature: temperature),
       stream: true, // Make sure we ask for the streaming method
     );
+    lastPrompt = prompt.text;
 
-    // Listen to the stream
     _aiSubscription = stream.listen(
           (AiEvent event) {
-        // This is your idea in action!
-        // We update the state based on the event status.
         switch (event.status) {
           case AiEventStatus.loading:
             isLoading = true;
-            status = "Generating...";
             responseText = "";
+            status = dict.value("waiting_for_AI");
+            notifyListeners();
             break;
 
           case AiEventStatus.streaming:
@@ -198,16 +231,18 @@ class aiEngine with md.ChangeNotifier {
             status = "Streaming response...";
             if (event.response != null) {
               response = event.response!;
-              responseText = event.response!.text; // Update with cumulative text
+              responseText = event.response!.text;
+              scrollChatlog(Duration(milliseconds: 100));
             }
             break;
 
           case AiEventStatus.done:
             isLoading = false;
             status = "Done";
-            if (event.response != null) {
-              responseText = event.response!.text; // Set final text
-            }
+            addToContext();
+            print("ADDING TO CONTEXT");
+            scrollChatlog(Duration(milliseconds: 100));
+            prompt.clear();
             break;
 
           case AiEventStatus.error:

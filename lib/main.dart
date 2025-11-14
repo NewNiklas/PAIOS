@@ -83,7 +83,14 @@ class MyAppState extends State<MyApp> {
                 labelSmall: blacker
             )
         ),
-        darkTheme: _themeData(darkColorScheme ?? _defaultDarkColorScheme),
+        darkTheme: _themeData(darkColorScheme ?? _defaultDarkColorScheme).copyWith(
+          pageTransitionsTheme: const PageTransitionsTheme(
+            builders: {
+              // Use PredictiveBackPageTransitionsBuilder to get the predictive back route transition!
+              TargetPlatform.android: PredictiveBackPageTransitionsBuilder(),
+            },
+          ),
+        ),
         themeMode: ThemeMode.system,
         debugShowCheckedModeBanner: false,
         home: LayoutBuilder(builder: (BuildContext context, BoxConstraints constraints) {
