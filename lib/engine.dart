@@ -5,6 +5,7 @@ import 'package:geminilocal/interface/flutter_local_ai.dart';
 import 'package:geminilocal/translator.dart';
 
 import 'gemini.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 
 class aiEngine with md.ChangeNotifier {
@@ -12,7 +13,10 @@ class aiEngine with md.ChangeNotifier {
   final prompt = md.TextEditingController();
   final instructions = md.TextEditingController();
 
-  Dictionary dict = Dictionary();
+  Dictionary dict = Dictionary(
+    path: "assets/translations",
+    url: "https://raw.githubusercontent.com/Puzzaks/geminilocal/main"
+  );
   late AiResponse response;
   String responseText = "";
   bool isLoading = false;
@@ -21,6 +25,7 @@ class aiEngine with md.ChangeNotifier {
   bool isInitializing = false;
   String status = "Engine not initialized";
   bool isError = false;
+  bool firstLaunch = true;
 
   // Config
   int tokens = 256; // Increased default
@@ -30,13 +35,20 @@ class aiEngine with md.ChangeNotifier {
   /// Subscription to manage the active AI stream
   StreamSubscription<AiEvent>? _aiSubscription;
 
+  Future<void> endFirstLaunch () async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setBool("firstLaunch", false);
+    firstLaunch = false;
+    notifyListeners();
+  }
+
   Future<void> checkAvailability() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    firstLaunch = await prefs.getBool("firstLaunch")??true;
     await dict.setup();
-    dict.saveLanguage("uk");
     modelInfo = await gemini.getModelInfo();
     notifyListeners();
     }
-  /// Call this from your UI (e.g., in initState) to start the engine.
   Future<void> initEngine() async {
     if (isInitializing || isInitialized) return;
 
@@ -46,7 +58,6 @@ class aiEngine with md.ChangeNotifier {
     notifyListeners();
 
     try {
-      // The new init method returns a status string.
       final String? initStatus = await gemini.init(
         instructions: instructions.text.isEmpty ? null : instructions.text,
       );
@@ -57,7 +68,6 @@ class aiEngine with md.ChangeNotifier {
         status = "Engine Init Error";
         analyzeError("Initialization", initStatus);
       } else {
-        // Any non-error response means it's available
         isAvailable = true;
         isInitialized = true;
         status = "Engine Initialized: $initStatus";
@@ -72,7 +82,6 @@ class aiEngine with md.ChangeNotifier {
     }
   }
 
-  /// Prompts user to install/update AICore
   void checkAICore() {
     gemini.openAICorePlayStore();
   }

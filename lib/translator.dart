@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
 
@@ -8,10 +9,12 @@ class Dictionary {
   bool systemLanguage = false;
   Map dictionary = {};
   String locale = "en";
+  String path = "";
+  String url = "";
 
-  Dictionary._internal();
-  factory Dictionary(){
-    return Dictionary._internal();
+  Dictionary._internal(this.path, this.url);
+  factory Dictionary({required String path, required String url}){
+    return Dictionary._internal(path, url);
   }
 
   decideLanguage() async {
@@ -39,15 +42,30 @@ class Dictionary {
     }
   }
   setup() async {
-    await rootBundle.loadString('assets/translations/languages.json').then((langlist) async {
+    await rootBundle.loadString('$path/languages.json').then((langlist) async {
       languages = jsonDecode(langlist);
       await decideLanguage();
       for(int i=0; i < languages.length; i++){
-        await rootBundle.loadString('assets/translations/${languages[i]["id"]}.json').then((langentry) async {
+        await rootBundle.loadString('$path/${languages[i]["id"]}.json').then((langentry) async {
           dictionary[languages[i]["id"]] = jsonDecode(langentry);
         });
       }
     });
+    final response = await http.get(
+      Uri.parse("$url/$path/languages.json"),
+    );
+    if(response.statusCode == 200) {
+      languages = jsonDecode(response.body);
+      await decideLanguage();
+      for (int i = 0; i < languages.length; i++) {
+        final languageGet = await http.get(
+          Uri.parse("$url/$path/${languages[i]["id"]}.json"),
+        );
+        if (response.statusCode == 200) {
+          dictionary[languages[i]["id"]] = jsonDecode(languageGet.body);
+        }
+      }
+    }
   }
 
   String value (String entry){
@@ -55,6 +73,9 @@ class Dictionary {
       return "Localisation engine FAILED [Default locale not initialized]";
     }
     if(!dictionary[locale].containsKey(entry)){
+      if(!dictionary["en"].containsKey(entry)){
+        return "No translation for $entry";
+      }
       return "!${dictionary["en"][entry].toString()}!";
     }
     return dictionary[locale][entry].toString();
