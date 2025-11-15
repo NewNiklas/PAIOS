@@ -84,7 +84,7 @@ class settingsPageState extends State<settingsPage> {
                               ),
                               cardContents.static(
                                   title: engine.dict.value("context_title"),
-                                  subtitle: engine.dict.value("context_desc").replaceAll("%c", (engine.context.split(" ").length-1).toString())
+                                  subtitle: engine.dict.value("context_desc").replaceAll("%c", engine.contextSize.toString())
                               ),
                             ]),
                             divider.settings(
@@ -136,6 +136,31 @@ class settingsPageState extends State<settingsPage> {
                                     });
                                   }
                               ),
+
+                              cardContents.turn(
+                                  title: engine.dict.value("error_retry"),
+                                  subtitle: engine.dict.value("error_retry_desc"),
+                                  action: (){
+                                    setState(() {
+                                      engine.errorRetry = !engine.errorRetry;
+                                    });
+                                    engine.saveSettings();
+                                  },
+                                  switcher: (value){
+                                    setState(() {
+                                      engine.errorRetry = !engine.errorRetry;
+                                    });
+                                    engine.saveSettings();
+                                  },
+                                  value: engine.errorRetry
+                              ),
+                              cardContents.tap(
+                                  title: engine.dict.value("open_aicore_settings"),
+                                  subtitle: engine.dict.value("in_play_store"),
+                                  action: () async {
+                                    engine.checkAICore();
+                                  }
+                              ),
                             ]),
                             divider.settings(
                                 title: engine.dict.value("settings_ai"),
@@ -158,6 +183,23 @@ class settingsPageState extends State<settingsPage> {
                                     engine.saveSettings();
                                   },
                                   value: engine.addCurrentTimeToRequests
+                              ),
+                              cardContents.turn(
+                                  title: engine.dict.value("add_lang"),
+                                  subtitle: engine.dict.value("add_lang_desc"),
+                                  action: (){
+                                    setState(() {
+                                      engine.shareLocale = !engine.shareLocale;
+                                    });
+                                    engine.saveSettings();
+                                  },
+                                  switcher: (value){
+                                    setState(() {
+                                      engine.shareLocale = !engine.shareLocale;
+                                    });
+                                    engine.saveSettings();
+                                  },
+                                  value: engine.shareLocale
                               ),
                               cardContents.addretract(
                                   title: engine.dict.value("temperature"),
@@ -221,13 +263,6 @@ class settingsPageState extends State<settingsPage> {
                                 context: context
                             ),
                             cards.cardGroup([
-                              cardContents.tap(
-                                  title: engine.dict.value("open_aicore_settings"),
-                                  subtitle: engine.dict.value("in_play_store"),
-                                  action: () async {
-                                    engine.checkAICore();
-                                  }
-                              ),
                               cardContents.tap(
                                   title: engine.dict.value("gh_repo"),
                                   subtitle: engine.dict.value("tap_to_open"),

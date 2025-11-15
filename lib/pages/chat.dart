@@ -121,33 +121,57 @@ class chatPageState extends State<chatPage> {
                               color: Theme.of(context).colorScheme.onPrimaryFixed,
                               child: Container(
                                 width: scaffoldWidth - 30,
-                                child: SingleChildScrollView(
-                                  controller: engine.scroller,
-                                  scrollDirection: Axis.vertical,
-                                  child: Padding(
-                                    padding: EdgeInsets.symmetric(
-                                        vertical: 5,
-                                        horizontal: 5
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.end,
-                                      children: [
-                                        Column(
-                                          children: tWid.chatlog(
-                                              conversation: engine.context,
-                                              context: context,
-                                            aiChunk: engine.responseText,
-                                            lastUser: engine.lastPrompt
-                                          ),
+                                child: Stack(
+                                  children: [
+                                    SingleChildScrollView(
+                                      controller: engine.scroller,
+                                      scrollDirection: Axis.vertical,
+                                      child: Padding(
+                                        padding: EdgeInsets.symmetric(
+                                            vertical: 5,
+                                            horizontal: 5
                                         ),
-                                      ],
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.end,
+                                          children: [
+                                            Column(
+                                              children: tWid.chatlog(
+                                                  conversation: engine.context,
+                                                  context: context,
+                                                  aiChunk: engine.responseText,
+                                                  lastUser: engine.lastPrompt
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
                                     ),
-                                  ),
+                                    Column(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Container(),
+                                        engine.isLoading
+                                            ? Padding(
+                                          padding: EdgeInsetsGeometry.symmetric(
+                                              horizontal: 10,
+                                              vertical: 0
+                                          ),
+                                          child: LinearProgressIndicator(
+                                            borderRadius: BorderRadius.circular(20),
+                                            value: engine.responseText == ""
+                                                ? null
+                                                : (engine.response.tokenCount!/engine.tokens)*1.25,
+                                          ),
+                                        )
+                                            : Container()
+                                      ],
+                                    )
+                                  ],
                                 ),
                               ),
                             ),
                           ),
-                          SizedBox(height: 10,),
+                         SizedBox(height: 10,),
                           Padding(
                             padding: const EdgeInsets.symmetric(
                                 vertical: 10,
@@ -157,6 +181,11 @@ class chatPageState extends State<chatPage> {
                               controller: engine.prompt,
                               autofocus: true,
                               onChanged: (change){engine.scrollChatlog(Duration(milliseconds: 250));},
+                              onTap: () async {
+                                engine.scrollChatlog(Duration(milliseconds: 250));
+                                await Future.delayed(Duration(milliseconds: 500));
+                                engine.scrollChatlog(Duration(milliseconds: 500));
+                                },
                               readOnly: engine.isLoading,
                               decoration: InputDecoration(
                                 isDense: true,

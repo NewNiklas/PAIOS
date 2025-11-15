@@ -36,5 +36,9 @@
   "context_desc": "~%c tokens",
   "context_title": "Context size",
   "add_time": "Tell model Date & Time",
-  "add_time_desc": "Insert Date & Time into model instructions"
+  "add_time_desc": "Insert Date & Time into instructions",
+  "add_lang": "Share app language with AI",
+  "add_lang_desc": "Ask the model to speak it",
+  "error_retry": "Retry on error",
+  "error_retry_desc": "Retry generating if error happens"
 }

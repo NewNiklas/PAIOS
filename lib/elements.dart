@@ -507,88 +507,92 @@ class text {
   List<Widget> chatlog({
     required String aiChunk,
     required String lastUser,
-    required String conversation,
+    required List conversation,
     required BuildContext context
   }) {
     double width = (WidgetsBinding.instance.platformDispatcher.views.first.physicalSize / WidgetsBinding.instance.platformDispatcher.views.first.devicePixelRatio).width;
     List<Widget> splits = [];
-    List<Widget> YES = conversation.split("\nPROMPT: ").map((prompt){
-      String userMessage = prompt.split("\nRESPONSE: ")[0];
-      String AIMessage = prompt.replaceAll(userMessage, "").replaceAll("\nRESPONSE: ", "");
-      if(!(lastUser == userMessage) && !(userMessage == "")) {
-        splits.add(
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                Padding(
-                  padding: EdgeInsetsGeometry.only(
-                      bottom: 0,
-                      top: 0
-                  ),
-                  child: Card(
-                    elevation: 0,
-                    color: Theme.of(context).colorScheme.onSecondaryContainer,
-                    clipBehavior: Clip.hardEdge,
-                    child: Padding(
-                      padding: EdgeInsetsGeometry.symmetric(
-                          vertical: 10,
-                          horizontal: 15
-                      ),
-                      child: Container(
-                        constraints: BoxConstraints(
-                            maxWidth: width - 200,
-                            minWidth: 0
+    for(var line in conversation){
+      if(line["user"] == "User"){
+        String userMessage = line["message"];
+        if(!(lastUser == userMessage) && !(userMessage == "")) {
+          splits.add(
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Padding(
+                    padding: EdgeInsetsGeometry.only(
+                        bottom: 0,
+                        top: 0
+                    ),
+                    child: Card(
+                      elevation: 0,
+                      color: Theme.of(context).colorScheme.onSecondaryContainer,
+                      clipBehavior: Clip.hardEdge,
+                      child: Padding(
+                        padding: EdgeInsetsGeometry.symmetric(
+                            vertical: 10,
+                            horizontal: 15
                         ),
-                        child: Text(
-                          userMessage,
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSecondary,
+                        child: Container(
+                          constraints: BoxConstraints(
+                              maxWidth: width - 200,
+                              minWidth: 0
+                          ),
+                          child: Text(
+                            userMessage,
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onSecondary,
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                )
-              ],
-            )
-      );
+                  )
+                ],
+              )
+          );
+        }
       }
-      if(!(aiChunk == AIMessage) && !(AIMessage == "")) {
-        splits.add(
-            Row(
-              mainAxisAlignment: MainAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: EdgeInsetsGeometry.only(
-                      bottom: 0,
-                      top: 0
-                  ),
-                  child: Card(
-                    elevation: 0,
-                    clipBehavior: Clip.hardEdge,
-                    child: Padding(
-                      padding: EdgeInsetsGeometry.symmetric(
-                          vertical: 10,
-                          horizontal: 15
-                      ),
-                      child: Container(
-                        constraints: BoxConstraints(
-                            maxWidth: width - 150,
-                            minWidth: 0.0
+      if(line["user"] == "Gemini"){
+        String AIMessage = line["message"];
+        if(!(AIMessage == aiChunk) && !(AIMessage == "")) {
+          splits.add(
+              Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: EdgeInsetsGeometry.only(
+                        bottom: 0,
+                        top: 0
+                    ),
+                    child: Card(
+                      elevation: 0,
+                      clipBehavior: Clip.hardEdge,
+                      child: Padding(
+                        padding: EdgeInsetsGeometry.symmetric(
+                            vertical: 10,
+                            horizontal: 15
                         ),
-                        child: MarkdownBody(
-                          selectable: true,
-                          data: AIMessage,
+                        child: Container(
+                          constraints: BoxConstraints(
+                              maxWidth: width - 150,
+                              minWidth: 0.0
+                          ),
+                          child: MarkdownBody(
+                            selectable: true,
+                            data: AIMessage,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                )
-              ],
-            )
-      );
+                  )
+                ],
+              )
+          );
+        }
       }
-    }).toList().cast<Widget>();
+    }
     if(!(lastUser == "")) {
       splits.add(
         Row(

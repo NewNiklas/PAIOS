@@ -10,7 +10,7 @@
   "gh_repo": "Репозиторій GitHub",
   "documentation": "Документація ML Kit GenAI",
   "tap_to_open": "Натисніть щоб відкрити",
-  "open_aicore_settings": "Відкрити налаштування AICore",
+  "open_aicore_settings": "Відкрити сторінку AICore",
   "in_play_store": "В Play Маркеті",
   "continue": "Продовжити",
   "temperature": "Температура",
@@ -36,5 +36,9 @@
   "context_desc": "~%c токенів",
   "context_title": "Об'єм контексту",
   "add_time": "Надати моделі час і дату",
-  "add_time_desc": "Вставляти час і дату в інструкцію"
+  "add_time_desc": "Вставляти час і дату в інструкцію",
+  "add_lang": "Поділитись мовою додатку",
+  "add_lang_desc": "Щоб модель спілкувалась нею",
+  "error_retry": "Автоповтор при помилках",
+  "error_retry_desc": "Генерувати знову при помилці"
 }
