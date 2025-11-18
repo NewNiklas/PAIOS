@@ -170,11 +170,11 @@ class introPageState extends State<introPage> {
                           ),
                           cards.cardGroup([
                             if(engine.modelDownloadLog.isNotEmpty)
-                              if(engine.modelDownloadLog[engine.modelDownloadLog.length-1]["status"] == "Download")
+                              if(engine.modelDownloadLog[engine.modelDownloadLog.length-1]["status"] == "Download" && !(engine.modelDownloadLog[engine.modelDownloadLog.length-1]["info"] == "Error"))
                                 if(int.parse(engine.modelDownloadLog[engine.modelDownloadLog.length-1]["value"]) > 0)
                                   cardContents.progress(
                                       title: engine.dict.value(engine.modelDownloadLog[engine.modelDownloadLog.length-1]["info"]),
-                                      subtitle: "${convertSize(int.parse(engine.modelDownloadLog[engine.modelDownloadLog.length-1]["value"]), false)}/~${convertSize(engine.usualModelSize, false)} (~${((int.parse(engine.modelDownloadLog[engine.modelDownloadLog.length-1]["value"]) / engine.usualModelSize)*100).toStringAsFixed(2)}%)",
+                                      subtitle: "${convertSize(int.parse(engine.modelDownloadLog[engine.modelDownloadLog.length-1]["value"]), false)}/${convertSize(engine.usualModelSize, false)} (${((int.parse(engine.modelDownloadLog[engine.modelDownloadLog.length-1]["value"]) / engine.usualModelSize)*100).toStringAsFixed(2)}%)",
                                       subsubtitle: engine.modelDownloadLog[engine.modelDownloadLog.length-1]["info"] == "waiting_network"?"": calcSpeed(engine.modelDownloadLog),
                                       progress: (int.parse(engine.modelDownloadLog[engine.modelDownloadLog.length-1]["value"])/engine.usualModelSize)
                                   ),
@@ -183,7 +183,7 @@ class introPageState extends State<introPage> {
                                 if(int.parse(engine.modelDownloadLog[engine.modelDownloadLog.length-1]["value"]) == 0)
                                   cardContents.progress(
                                       title: engine.dict.value(engine.modelDownloadLog[engine.modelDownloadLog.length-1]["info"]),
-                                      subtitle: "${convertSize(0, false)}/${convertSize(engine.usualModelSize, false)} (0%)",
+                                      subtitle: "",
                                       subsubtitle: "",
                                       progress: 0
                                   ),
@@ -208,8 +208,23 @@ class introPageState extends State<introPage> {
                                       engine.checkEngine();
                                   },
                                   icon: Icons.refresh_rounded
-                                )
+                                ),
+                            if(engine.modelDownloadLog.isEmpty)
+                              cardContents.progress(
+                                  title: engine.dict.value("waiting_engine"),
+                                  subtitle: "",
+                                  subsubtitle: "",
+                                  progress: 0
+                              ),
                           ]),
+                          if(engine.modelDownloadLog.isNotEmpty)
+                            if(engine.modelDownloadLog[engine.modelDownloadLog.length-1]["info"] == "downloading_model")
+                              text.infoShort(
+                                  title: engine.dict.value("welcome_gtfo"),
+                                  subtitle: "",
+                                  action: () {},
+                                  context: context
+                              ),
                           divider.settings(
                               title: engine.dict.value("language_settings"),
                               context: context

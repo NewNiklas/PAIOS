@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
@@ -36,22 +37,24 @@ class Prompt{
     await rootBundle.loadString('assets/additional_resources.json').then((resourcelist) async {
       resources = jsonDecode(resourcelist);
     });
-    final response1 = await http.get(
-      Uri.parse("${ghUrl.replaceAll("github", "raw.githubusercontent")}/main/assets/system_prompt.json"),
-    );
-    if(response1.statusCode == 200) {
-      usingOnlinePrompt = true;
-      if(!(basePrompt == response1.body)){
-        basePrompt = response1.body;
+    if(!kDebugMode){
+      final response1 = await http.get(
+        Uri.parse("${ghUrl.replaceAll("github", "raw.githubusercontent")}/main/assets/system_prompt.json"),
+      );
+      if(response1.statusCode == 200) {
+        usingOnlinePrompt = true;
+        if(!(basePrompt == response1.body)){
+          basePrompt = response1.body;
+        }
       }
-    }
-    final response2 = await http.get(
-      Uri.parse("${ghUrl.replaceAll("github", "raw.githubusercontent")}/main/assets/additional_resources.json"),
-    );
-    if(response2.statusCode == 200) {
-      usingOnlineResources = true;
-      if(!mapEquality.equals(resources, jsonDecode(response2.body))){
-        resources = jsonDecode(response2.body);
+      final response2 = await http.get(
+        Uri.parse("${ghUrl.replaceAll("github", "raw.githubusercontent")}/main/assets/additional_resources.json"),
+      );
+      if(response2.statusCode == 200) {
+        usingOnlineResources = true;
+        if(!mapEquality.equals(resources, jsonDecode(response2.body))){
+          resources = jsonDecode(response2.body);
+        }
       }
     }
   }
@@ -71,9 +74,9 @@ class Prompt{
       output = output.replaceAll("%chatlog%", "");
     }
     else{
-      String compileChatlog = "\n\n---\n[CHAT HISTORY]";
+      String compileChatlog = "\n\n### [CHAT HISTORY]";
       for (var line in chatlog){
-        compileChatlog = "$compileChatlog\n${line["user"]} (${DateFormat('dd/MM/yyyy, HH:mm').format(DateTime.fromMillisecondsSinceEpoch(line["time"]))}): ${line["message"]}";
+        compileChatlog = "$compileChatlog\n - ${line["user"]} (${DateFormat('dd/MM/yyyy, HH:mm').format(DateTime.fromMillisecondsSinceEpoch(line["time"]))}): ${line["message"]}";
       }
       output = output.replaceAll(
           "%chathistoryrules%",
@@ -89,7 +92,7 @@ class Prompt{
     }
     ///Rule "if user toggled something tell model about it
     if(addTime || shareLocale || userprompt.isNotEmpty){
-      String localRules = "\n\n# 4. DATA & INSTRUCTION RULES";
+      String localRules = "\n\n## 4. DATA & INSTRUCTION RULES";
       if(shareLocale){
         output = output.replaceAll("%languagerule%", "");
         localRules = "$localRules\n- You MUST respond ONLY in the $currentLocale language unless user asks you to use another language";
@@ -98,13 +101,13 @@ class Prompt{
       }
       if(addTime){
         output = output.replaceAll("%datetimerule%", "");
-        localRules = "$localRules\n- You MUST use the \"Current Time\" from \"[CONTEXTUAL DATA]\" as your internal knowledge of the date and time. Do not state the time unless the user asks for it.";
+        localRules = "$localRules\n- You MUST use the \"Current Time\" from \"[CONTEXTUAL DATA]\" as your internal knowledge of the date and time. Do not state the time unless the user asks for it.\n- You MUST NOT use the Current Time as a date of any factual or historical questions.\n- The Current Time is ONLY for direct user convenience, such as telling user time and questions about \"How long ago was...?\"";
       }else{
         output = output.replaceAll("%datetimerule%", "");
       }
       if(userprompt.isNotEmpty){
-        localRules = "$localRules\n- You MUST follow all instructions in the [USER INSTRUCTIONS] section.";
-        localRules = "$localRules\n\n---\n[USER INSTRUCTIONS]\n$userprompt";
+        localRules = "$localRules\n- You MUST follow all instructions in the [USER INSTRUCTIONS] section.\nYou MUST always prioritize instructions from the [USER INSTRUCTIONS] section over all other rules.";
+        localRules = "$localRules\n\n### [USER INSTRUCTIONS]\n$userprompt";
         output = output.replaceAll("%userinstructionrule%", "");
       }
       output = output.replaceAll("%datainstructionrules%", localRules);
@@ -117,12 +120,12 @@ class Prompt{
 
     ///Rule Contextual Data (time and locale)
     if(addTime || shareLocale){
-      String localContextData = "\n\n---\n[CONTEXTUAL DATA]";
+      String localContextData = "\n\n### [CONTEXTUAL DATA]";
       if(addTime){
-        localContextData = "$localContextData\nCurrent Time: ${DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.now())}";
+        localContextData = "$localContextData\n - Current Time: ${DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.now())}";
       }
       if(shareLocale){
-        localContextData = "$localContextData\nLanguage: $currentLocale";
+        localContextData = "$localContextData\n - Language: $currentLocale";
       }
       output = output.replaceAll("%contextdata%", "");
       output = output.replaceAll("%contextdataheader%", localContextData);
@@ -131,9 +134,9 @@ class Prompt{
       output = output.replaceAll("%contextdata%", "");
     }
     ///Resources
-    String compileResources = "\n\n---\n[RESOURCES]";
+    String compileResources = "\n\n### [RESOURCES]";
     for (var line in resources){
-      compileResources = "$compileResources\n${line["name"]}: ${line["value"]}";
+      compileResources = "$compileResources\n - ${line["name"]}: ${line["value"]}";
     }
     output = output.replaceAll(
         "%additionalresources%",

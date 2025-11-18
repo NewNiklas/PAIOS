@@ -332,12 +332,12 @@ class cardContents {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              subtitle == ""?Container(height: 10,):
+              subtitle == ""?Container():
               Text(
                 subtitle,
                 overflow: TextOverflow.ellipsis,
               ),
-              subsubtitle == ""?Container(height: 10,):
+              subsubtitle == ""?Container():
               Text(
                 subsubtitle,
                 overflow: TextOverflow.ellipsis,
@@ -346,7 +346,7 @@ class cardContents {
           ),
           Padding(
             padding: EdgeInsetsGeometry.symmetric(
-              vertical: 5
+              vertical: subtitle == ""?10:5
             ),
             child: LinearProgressIndicator(
               value: progress == 0

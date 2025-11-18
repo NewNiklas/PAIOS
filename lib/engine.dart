@@ -119,38 +119,88 @@ class aiEngine with md.ChangeNotifier {
   }
 
 
-  Future<void> lateNetCheck(int time) async {
-    await Future.delayed(Duration(seconds: 1));
-    if(time == modelDownloadLog[modelDownloadLog.length-1]["time"]){
+  lateNetCheck() async {
+    while(firstLaunch){
       final connectivityResult = await (Connectivity().checkConnectivity());
       if (!connectivityResult.contains(ConnectivityResult.wifi)) {
-        addDownloadLog("Download=waiting_network=${modelDownloadLog[modelDownloadLog.length-1]["value"]}");
+        if(modelDownloadLog.length > 0) {
+          if (!(modelDownloadLog[modelDownloadLog.length - 1]["info"] == "waiting_network")) {
+            if(modelDownloadLog[modelDownloadLog.length - 1]["info"] == "downloading_model"){
+              addDownloadLog("Download=waiting_network=${modelDownloadLog[modelDownloadLog.length - 1]["value"]}");}
+          }
+        }
+      } else {
+        if(modelDownloadLog.length > 0){
+          if ((modelDownloadLog[modelDownloadLog.length - 1]["info"] == "waiting_network")) {
+            addDownloadLog("Download=downloading_model=${modelDownloadLog[modelDownloadLog.length - 1]["value"]}");
+          }
+        }
+      }
+      await Future.delayed(Duration(seconds: 2));
+    }
+  }
+
+  lateProgressCheck() async {
+    Map lastUpdate = {};
+    while(firstLaunch){
+      await Future.delayed(Duration(seconds: 15));
+      if(lastUpdate == {}){
+        if(modelDownloadLog.isNotEmpty){
+          lastUpdate = modelDownloadLog[modelDownloadLog.length - 1];
+        }
+      }
+      if(modelDownloadLog.isNotEmpty){
+        if(lastUpdate == modelDownloadLog[modelDownloadLog.length - 1]){
+          print("Nothing changed in the last 15 seconds, assume we have restarted and are not getting updates; We must restart the checkEngine. So...");
+          checkEngine();
+        }else{
+          lastUpdate = modelDownloadLog[modelDownloadLog.length - 1];
+        }
       }
     }
   }
 
   Future<void> checkEngine() async {
+    print("Starting Engine Init");
+    if(modelDownloadLog.isEmpty){
+      lateNetCheck();
+      lateProgressCheck();
+    }
+    modelDownloadLog.clear();
     gemini.statusStream = gemini.downloadChannel.receiveBroadcastStream().map((dynamic event) => event.toString());
     gemini.statusStream.listen((String downloadStatus) async {
+      print("Received: $downloadStatus");
       switch (downloadStatus.split("=")[0]){
         case "Available":
           modelInfo = await gemini.getModelInfo();
+          print("Checked: $modelInfo");
           if(modelInfo["version"]==null){
+            await Future.delayed(Duration(seconds: 2));
             checkEngine();
           }else{
-            endFirstLaunch();
+            if(modelInfo["status"]=="Available"){
+              endFirstLaunch();
+            }else{
+              if(downloadStatus.split("=")[1] == "Download"){
+                if(!(modelDownloadLog[modelDownloadLog.length-1]["info"] == "waiting_network")){
+                  addDownloadLog("Download=downloading_model=0");
+                }
+              }else{
+                addDownloadLog(downloadStatus);
+              }
+            }
           }
-          addDownloadLog(downloadStatus);
           break;
         case "Download":
           if(modelDownloadLog.isEmpty){
             addDownloadLog(downloadStatus);
           }else{
-            if(int.parse(downloadStatus.split("=")[2]) > int.parse(modelDownloadLog[modelDownloadLog.length-1]["value"])){
-              addDownloadLog(downloadStatus);
+            if(!modelDownloadLog[modelDownloadLog.length-1]["value"].contains("error")){
+              if(int.parse(downloadStatus.split("=")[2]) > int.parse(modelDownloadLog[modelDownloadLog.length-1]["value"])){
+                addDownloadLog(downloadStatus);
+              }
             }
           }
-          lateNetCheck(modelDownloadLog[modelDownloadLog.length-1]["time"]);
           break;
         case "Error":
           addDownloadLog(downloadStatus);

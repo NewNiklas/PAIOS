@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../engine.dart';
 import '../support/elements.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 
 
 class modelSettingsContext extends StatefulWidget {
@@ -48,8 +49,15 @@ class modelSettingsContextState extends State<modelSettingsContext> {
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 20
                               ),
-                              child: Text(
-                                  engine.testPrompt.split("replaceme")[0]
+                              child: MarkdownBody(
+                                onTapLink: (String text, String? href, String title) async {
+                                  await launchUrl(
+                                      Uri.parse(href!),
+                                      mode: LaunchMode.externalApplication
+                                  );
+                                },
+                                selectable: true,
+                                data: engine.testPrompt.split("replaceme")[0],
                               ),
                             ),
                             Padding(
@@ -73,8 +81,15 @@ class modelSettingsContextState extends State<modelSettingsContext> {
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 20
                               ),
-                              child: Text(
-                                  engine.testPrompt.split("replaceme")[1]
+                              child: MarkdownBody(
+                                onTapLink: (String text, String? href, String title) async {
+                                  await launchUrl(
+                                      Uri.parse(href!),
+                                      mode: LaunchMode.externalApplication
+                                  );
+                                },
+                                selectable: true,
+                                data: engine.testPrompt.split("replaceme")[1],
                               ),
                             ),
                             text.info(

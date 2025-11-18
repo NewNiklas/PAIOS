@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:dynamic_color/dynamic_color.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:geminilocal/pages/chat.dart';
 import 'package:geminilocal/pages/intro.dart';
@@ -89,7 +90,7 @@ class MyAppState extends State<MyApp> {
           ),
         ),
         themeMode: ThemeMode.system,
-        debugShowCheckedModeBanner: false,
+        debugShowCheckedModeBanner: kDebugMode,
         home: LayoutBuilder(builder: (BuildContext context, BoxConstraints constraints) {
           double scaffoldHeight = constraints.maxHeight;
           double scaffoldWidth = constraints.maxWidth;
