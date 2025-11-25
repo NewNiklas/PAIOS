@@ -259,7 +259,6 @@ class AIEngine with md.ChangeNotifier {
   }
 
   Future generateTitle (String input) async {
-    await Future.delayed(Duration(milliseconds: 500)); /// We have to wait some time because summarizing immediately will always result in overflowing the quota for some reason
     ignoreContext = true;
     await gemini.init().then((initStatus) async {
       ignoreContext = false;
@@ -288,6 +287,7 @@ class AIEngine with md.ChangeNotifier {
     if(conversation.isNotEmpty){
       if(chats.containsKey(chatID)){
         if(!chats[chatID]!.containsKey("name")){
+          await Future.delayed(Duration(milliseconds: 500)); /// We have to wait some time because summarizing immediately will always result in overflowing the quota for some reason
            await generateTitle(conversation[0]["message"]).then((newTitle){
              chats[chatID]!["name"] =  newTitle;
            });
@@ -295,7 +295,9 @@ class AIEngine with md.ChangeNotifier {
         chats[chatID]!["history"] = jsonEncode(conversation).toString();
         chats[chatID]!["updated"] =  DateTime.now().millisecondsSinceEpoch.toString();
       }else{
-        final newTitle = await generateTitle(lastPrompt.trim());
+        await Future.delayed(Duration(milliseconds: 500)); /// We have to wait some time because summarizing immediately will always result in overflowing the quota for some reason
+        String newTitle = await generateTitle(lastPrompt.trim());
+        print("And new title is... $newTitle");
         chats[chatID] = {
           "name": newTitle,
           "history": jsonEncode(conversation).toString(),
@@ -304,8 +306,6 @@ class AIEngine with md.ChangeNotifier {
         };
       }
     }
-
-    print("Saved chat $chatID, conversation:\n$conversation\n\nSaved as:\n${chats[chatID]}");
     await prefs.setString("chats", jsonEncode(chats));
     notifyListeners();
   }

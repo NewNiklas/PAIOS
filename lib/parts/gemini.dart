@@ -129,6 +129,7 @@ class GeminiNano {
   }
 
   Future<String> generateText({required String prompt, GenerationConfig? config}) async {
+    print("Request to generate text with $prompt");
     final stream = _getAiEvents(
       prompt: prompt,
       config: config,
@@ -139,6 +140,7 @@ class GeminiNano {
     stream.listen((AiEvent event) {
       if(event.status == AiEventStatus.streaming){
         response = event.response!.text;
+        print("Received: $response");
       }
       if(event.status == AiEventStatus.done){
         isFinished = true;
@@ -150,9 +152,10 @@ class GeminiNano {
     });
     while(true){
       if(isFinished){
+        print("Received2: $response");
         return response;
       }else{
-        await Future.delayed(Duration(milliseconds: 250));
+        await Future.delayed(Duration(milliseconds: 50));
       }
     }
   }
