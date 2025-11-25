@@ -48,9 +48,10 @@ class AIEngine with md.ChangeNotifier {
   Map resources = {};
   List modelDownloadLog = [];
   bool ignoreInstructions = false;
+  bool ignoreContext = false;
 
-  Map<int, Map> chats = {};
-  int currentChat = "";
+  Map chats = {};
+  String currentChat = "0";
 
   /// Subscription to manage the active AI stream
   StreamSubscription<AiEvent>? _aiSubscription;
@@ -91,6 +92,9 @@ class AIEngine with md.ChangeNotifier {
     if(prefs.containsKey("context")){
       context = jsonDecode(prefs.getString("context")??"[]");
       contextSize = prefs.getInt("contextSize")??0;
+    }
+    if(prefs.containsKey("chats")){
+      chats = jsonDecode(prefs.getString("chats")??"[]");
     }
     addCurrentTimeToRequests = prefs.getBool("addCurrentTimeToRequests")??false;
     shareLocale = prefs.getBool("shareLocale")??false;
@@ -230,41 +234,80 @@ class AIEngine with md.ChangeNotifier {
     contextSize = contextSize + responseText.split(' ').length + lastPrompt.split(' ').length;
     context.add({
       "user": "User",
-      "time": DateTime.now().millisecondsSinceEpoch,
+      "time": DateTime.now().millisecondsSinceEpoch.toString(),
       "message": lastPrompt
     });
     context.add({
       "user": "Gemini",
-      "time": DateTime.now().millisecondsSinceEpoch,
+      "time": DateTime.now().millisecondsSinceEpoch.toString(),
       "message": responseText
     });
     await prefs.setString("context", jsonEncode(context));
     await prefs.setInt("contextSize", contextSize);
-    if(currentChat == 0) {
-      currentChat = DateTime.now().millisecondsSinceEpoch;
+    if(currentChat == "0") {
+      currentChat = DateTime.now().millisecondsSinceEpoch.toString();
     }
+    await saveChat(context, chatID: currentChat);
     notifyListeners();
   }
 
-  saveChat(List conversation, {int chatID = 0}){
-    if(chatID == 0) {
-      chatID = DateTime.now().millisecondsSinceEpoch;
+  deleteChat(String chatID){
+    if(chats.containsKey(chatID) && !(chatID == "0")){
+      chats.remove(chatID);
+      notifyListeners();
+    }
+  }
+
+  Future generateTitle (String input) async {
+    await Future.delayed(Duration(milliseconds: 500)); /// We have to wait some time because summarizing immediately will always result in overflowing the quota for some reason
+    ignoreContext = true;
+    await gemini.init().then((initStatus) async {
+      ignoreContext = false;
+      if (initStatus == null) {
+        analyzeError("Initialization", "Did not get response from AICore communication attempt");
+      }else{
+        if (initStatus.contains("Error")) {
+          analyzeError("Initialization", initStatus);
+        }else{
+          await gemini.generateText(
+            prompt: "Summarize the text in one sentence.\nRespond in under 7 words.\nDon't add any prefix like \"The text is about\".\nSimply answer the question \"What this text is about\" in the shortest correct way possible.\nDon't provide any answer to the contents of the text, just summarize it.\n\n<TEXT STARTS HERE>\n$input\n<TEXT ENDS HERE>",
+            config: GenerationConfig(maxTokens: 250, temperature: 0.7),
+          ).then((title){
+            return title;
+          });
+        }
+      }
+    });
+  }
+
+  saveChat(List conversation, {String chatID = "0"}) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    if(chatID == "0") {
+      chatID = DateTime.now().millisecondsSinceEpoch.toString();
     }
     if(conversation.isNotEmpty){
       if(chats.containsKey(chatID)){
-        if(chats[chatID]!.containsKey("name")){
-          /// Make up a name for the conversation
-          chats[chatID]!["history"] = conversation;
-        }else{
-          chats[chatID]!["history"] = conversation;
+        if(!chats[chatID]!.containsKey("name")){
+           await generateTitle(conversation[0]["message"]).then((newTitle){
+             chats[chatID]!["name"] =  newTitle;
+           });
         }
+        chats[chatID]!["history"] = jsonEncode(conversation).toString();
+        chats[chatID]!["updated"] =  DateTime.now().millisecondsSinceEpoch.toString();
       }else{
-        /// Make up a name for the conversation
+        final newTitle = await generateTitle(lastPrompt.trim());
         chats[chatID] = {
-          "history": conversation
+          "name": newTitle,
+          "history": jsonEncode(conversation).toString(),
+          "created": DateTime.now().millisecondsSinceEpoch.toString(),
+          "updated": DateTime.now().millisecondsSinceEpoch.toString()
         };
       }
     }
+
+    print("Saved chat $chatID, conversation:\n$conversation\n\nSaved as:\n${chats[chatID]}");
+    await prefs.setString("chats", jsonEncode(chats));
+    notifyListeners();
   }
 
   clearContext() async {
@@ -273,6 +316,8 @@ class AIEngine with md.ChangeNotifier {
     contextSize = 0;
     lastPrompt = "";
     responseText = "";
+    chats.remove(currentChat);
+    await prefs.setString("chats", jsonEncode(chats));
     await prefs.setString("context", jsonEncode(context));
     await prefs.setInt("contextSize", contextSize);
     notifyListeners();
@@ -291,7 +336,8 @@ class AIEngine with md.ChangeNotifier {
           currentLocale: dict.value("current_language"),
           addTime: addCurrentTimeToRequests,
           shareLocale: shareLocale,
-          ignoreInstructions: ignoreInstructions
+          ignoreInstructions: ignoreInstructions,
+          ignoreContext: ignoreContext
       ).then((instruction) async {
         await gemini.init(instructions: instruction).then((initStatus){
           if (initStatus == null) {
@@ -360,7 +406,7 @@ class AIEngine with md.ChangeNotifier {
     notifyListeners();
 
     final stream = gemini.generateTextEvents(
-      prompt: "User request:\n${prompt.text.trim()}",
+      prompt: "User's request: ${prompt.text.trim()}",
       config: GenerationConfig(maxTokens: tokens, temperature: temperature),
       stream: true,
     );

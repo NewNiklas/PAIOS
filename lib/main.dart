@@ -2,6 +2,7 @@ import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:geminilocal/pages/chat.dart';
+import 'package:geminilocal/pages/chats.dart';
 import 'package:geminilocal/pages/intro.dart';
 import 'package:provider/provider.dart';
 import 'engine.dart';
@@ -109,7 +110,7 @@ class MyAppState extends State<MyApp> {
                   secondChild: SizedBox(
                     height: scaffoldHeight,
                     width: scaffoldWidth,
-                    child: ChatPage(),
+                    child: ChatsPage(),
                   ),
                   crossFadeState: engine.firstLaunch? CrossFadeState.showFirst : CrossFadeState.showSecond,
                 ),

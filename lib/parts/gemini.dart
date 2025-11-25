@@ -128,17 +128,33 @@ class GeminiNano {
     });
   }
 
-  Future<AiResponse> generateText({required String prompt, GenerationConfig? config}) async {
+  Future<String> generateText({required String prompt, GenerationConfig? config}) async {
     final stream = _getAiEvents(
       prompt: prompt,
       config: config,
-      stream: false,
+      stream: true,
     );
-    final event = await stream.firstWhere((e) => e.status == AiEventStatus.done || e.status == AiEventStatus.error);
-    if (event.status == AiEventStatus.error) {
-      throw Exception(event.error ?? 'Unknown Error while generating');
+    bool isFinished = false;
+    String response = "Loading...";
+    stream.listen((AiEvent event) {
+      if(event.status == AiEventStatus.streaming){
+        response = event.response!.text;
+      }
+      if(event.status == AiEventStatus.done){
+        isFinished = true;
+      }
+      if(event.status == AiEventStatus.error){
+        response = "Error";
+        isFinished = true;
+      }
+    });
+    while(true){
+      if(isFinished){
+        return response;
+      }else{
+        await Future.delayed(Duration(milliseconds: 250));
+      }
     }
-    return event.response!;
   }
 
   Stream<AiResponse> generateTextStream({required String prompt, GenerationConfig? config}) {
