@@ -108,7 +108,9 @@ class ChatsPageState extends State<ChatsPage> {
                                   };
                                   return CardContents.tap(
                                       title: chat["name"]??"Loading...",
-                                      subtitle: "!Updated ${formatDurationToShortString(DateTime.now(), DateTime.fromMillisecondsSinceEpoch(int.parse(chat["updated"])))}",
+                                      subtitle: formatDurationToShortString(DateTime.now(), DateTime.fromMillisecondsSinceEpoch(int.parse(chat["updated"]))) == "just now"
+                                        ? engine.dict.value("just_now")
+                                        : engine.dict.value(formatDurationToShortString(DateTime.now(), DateTime.fromMillisecondsSinceEpoch(int.parse(chat["updated"]))).split(" ")[0]).replaceAll("%time%", formatDurationToShortString(DateTime.now(), DateTime.fromMillisecondsSinceEpoch(int.parse(chat["updated"]))).split(" ")[1]),
                                       action: () async {
                                         print("I have chats: ${engine.chats.keys}");
                                         engine.isLoading = false;
