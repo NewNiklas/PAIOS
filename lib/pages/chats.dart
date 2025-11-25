@@ -18,6 +18,36 @@ class ChatsPage extends StatefulWidget {
 }
 
 class ChatsPageState extends State<ChatsPage> {
+
+  String formatDurationToShortString(DateTime currentTime, DateTime pastTimestamp) {
+    final Duration difference = currentTime.difference(pastTimestamp);
+
+    final int seconds = difference.inSeconds.abs();
+    final int minutes = difference.inMinutes.abs();
+    final int hours = difference.inHours.abs();
+    final int days = difference.inDays.abs();
+
+    if (seconds < 60) {
+      return 'just now';
+    } else if (minutes < 60) {
+      final String unit = minutes == 1 ? 'minute' : 'minutes';
+      return '$minutes $unit';
+    } else if (hours < 24) {
+      final String unit = hours == 1 ? 'hour' : 'hours';
+      return '$hours $unit';
+    } else if (days < 30) { // Approximates within a month
+      final String unit = days == 1 ? 'day' : 'days';
+      return '$days $unit';
+    } else if (days < 365) {
+      final int months = (days / 30).round();
+      final String unit = months == 1 ? 'month' : 'months';
+      return '$months $unit';
+    } else {
+      final int years = (days / 365).round();
+      final String unit = years == 1 ? 'year' : 'years';
+      return '$years $unit';
+    }
+  }
   @override
   void initState() {
     super.initState();
@@ -78,7 +108,7 @@ class ChatsPageState extends State<ChatsPage> {
                                   };
                                   return CardContents.tap(
                                       title: chat["name"]??"Loading...",
-                                      subtitle: chat["updated"],
+                                      subtitle: "!Updated ${formatDurationToShortString(DateTime.now(), DateTime.fromMillisecondsSinceEpoch(int.parse(chat["updated"])))}",
                                       action: () async {
                                         print("I have chats: ${engine.chats.keys}");
                                         engine.isLoading = false;
