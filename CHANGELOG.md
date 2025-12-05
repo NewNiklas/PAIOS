@@ -1,3 +1,18 @@
+## Update 1.1.1 `OBT`
+#### Changes
+ - Chat list now shows status of generation in the correct chat
+ - You now can jump only to the chat that is being generated now
+ - New chat card is at the top of the list
+ - "AI Title" function now describes the whole chat, not the first message only
+ - Some code refactoring
+#### Fixes
+ - Fixed that "Pinned" category would appear even if there are none
+ - Fixed that "Other chats" category was not shown when there are pinned chats
+ - Fixed the issue with messages appearing in wrong chats
+ - Fixed the issue where messages were not in order
+#### Miscellaneous
+ - Changed color variables throughout the app (you shouldn't notice any changes visually, it was internal)
+
 ## Update 1.1.0 `OBT`
 #### Changes
  - Multichats!
