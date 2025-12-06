@@ -169,6 +169,7 @@ class AIEngine with md.ChangeNotifier {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     if(prefs.containsKey("analytics")){
       analytics = prefs.getBool("analytics")??true;
+    }else{
       await startAnalytics();
     }
     log("init", "info", "Starting the app engine");
