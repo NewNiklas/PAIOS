@@ -110,6 +110,7 @@ class AIEngine with md.ChangeNotifier {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+    await FirebaseAnalytics.instance.setConsent();
     await Firebase.app().setAutomaticDataCollectionEnabled(true);
     await Firebase.app().setAutomaticResourceManagementEnabled(true);
   }
@@ -165,6 +166,11 @@ class AIEngine with md.ChangeNotifier {
   }
 
   Future<void> start() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    if(prefs.containsKey("analytics")){
+      analytics = prefs.getBool("analytics")??true;
+      await startAnalytics();
+    }
     log("init", "info", "Starting the app engine");
     log("init", "info", "Starting the translations engine");
     await dict.setup();
@@ -172,11 +178,6 @@ class AIEngine with md.ChangeNotifier {
     await checkEngine();
     log("init", "info", "Initializing the Prompt engine");
     await promptEngine.initialize();
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    if(prefs.containsKey("analytics")){
-      analytics = prefs.getBool("analytics")??true;
-      startAnalytics();
-    }
     log("init", "info", "Firebase analytics: ${analytics?"Enabled":"Disabled"}");
     if(prefs.containsKey("context")){
       context = jsonDecode(prefs.getString("context")??"[]");
