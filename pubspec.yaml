@@ -1,5 +1,5 @@
 name: geminilocal
-description: "Gemini Nano on-device client"
+description: "Local AI, on-device client"
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
 version: 1.1.2+5

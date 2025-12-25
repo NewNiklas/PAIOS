@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="Gemini Nano"
+        android:label="PAIOS"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <uses-library android:name="com.google.android.aicore" android:required="false" />

@@ -143,7 +143,7 @@ class IntroPageState extends State<IntroPage> {
                     // This is the animated, collapsing app bar
                     SliverAppBar.large(
                       surfaceTintColor: Colors.transparent,
-                      title: const Text('Gemini Nano'),
+                      title: const Text('PAIOS'),
                       // 'pinned: true' makes the app bar stick to the top
                       // 'floating: false' and 'snap: false' are the default
                       // and give the standard "scroll up to collapse" behavior.
@@ -179,7 +179,7 @@ class IntroPageState extends State<IntroPage> {
                             if(engine.modelDownloadLog.isNotEmpty)
                               if(engine.modelDownloadLog[engine.modelDownloadLog.length-1]["status"] == "Available")
                                 CardContents.static(
-                                    title: "Gemini Nano ${engine.dict.value("available")}",
+                                    title: "Model ${engine.dict.value("available")}",
                                     subtitle: engine.modelInfo["version"] == null
                                         ? ""
                                         : engine.dict.value("model_available").replaceAll("%s", engine.modelInfo["version"])
@@ -187,7 +187,7 @@ class IntroPageState extends State<IntroPage> {
                             if(engine.modelDownloadLog.isNotEmpty)
                               if(engine.modelDownloadLog[engine.modelDownloadLog.length-1]["status"] == "Error")
                                 CardContents.doubleTap(
-                                    title: "Gemini Nano ${engine.dict.value("unavailable")}",
+                                    title: "Model ${engine.dict.value("unavailable")}",
                                     subtitle: engine.dict.value("whoops"),
                                     action: () async {
                                       engine.gemini.openAICorePlayStore();

@@ -21,7 +21,10 @@
         <option name="modules">
           <set>
             <option value="$PROJECT_DIR$/../../../../../Programs/Android/flutter/packages/flutter_tools/gradle" />
+            <option value="$USER_HOME$/AppData/Local/Pub/Cache/hosted/pub.dev/connectivity_plus-6.1.5/android" />
             <option value="$USER_HOME$/AppData/Local/Pub/Cache/hosted/pub.dev/dynamic_color-1.8.1/android" />
+            <option value="$USER_HOME$/AppData/Local/Pub/Cache/hosted/pub.dev/firebase_analytics-12.0.4/android" />
+            <option value="$USER_HOME$/AppData/Local/Pub/Cache/hosted/pub.dev/firebase_core-4.2.1/android" />
             <option value="$USER_HOME$/AppData/Local/Pub/Cache/hosted/pub.dev/fluttertoast-8.2.14/android" />
             <option value="$USER_HOME$/AppData/Local/Pub/Cache/hosted/pub.dev/package_info_plus-4.2.0/android" />
             <option value="$USER_HOME$/AppData/Local/Pub/Cache/hosted/pub.dev/path_provider_android-2.2.20/android" />
