@@ -1,7 +1,7 @@
 [
   {
     "type": "link",
-    "collection": "advanced",
+    "collection": "advancedlinks",
     "name": "Use AICore with root access",
     "value": "https://xdaforums.com/t/app-xposed-public-compute-services-use-aicore-features-on-rooted-devices.4775989/"
   },
