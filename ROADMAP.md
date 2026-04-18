@@ -7,9 +7,9 @@
     - Multi-chat application with finalized MD3 style and state control for model download
  - [x] **Basic features** `1.1.0`
     - Multichat, chat pinning, basic per-chat settings
- - [x] **Hotfixes and monitoring** `1.1.1`, `1.1.2`, `1.1.5`
+ - [x] **Hotfixes and monitoring** `~1.1.1`, `~1.1.2`, `1.1.5`
     - Optional analytics and crash reporting, logging, issue fixes in UI and backend
- - [ ] **Additional features**
+ - [ ] **Additional features** `~1.1.6`
     - Per-chat personas, temperature and token limit settings, etc. 
  - [ ] **Generation extension**
     - Workaround for 25s response generation time that ends answers prematurely
@@ -19,11 +19,11 @@
     - Viewer for Google documentation on AICore with article browser
  - [ ] **Contributions and open-source licenses**
     - Show some respect to developers who made this possible
- - [ ] **Change in storage and updates**
+ - [ ] **Change in storage and updates** `~1.1.6`
     - Use Firebase Remote Config for delivering data updates and storage instead of GitHub, move to a real DB instead of shared prefs
  - [ ] **GitHub issue and update browser**
     - A neat dashboard of contributions and issue list from this repo, in-app
- - [ ] **Master Prompt selector and editor**
+ - [ ] **Master Prompt selector and editor** `~1.1.6`
     - Collection of different Master Prompts and ability to create own ones
  - [ ] **Master Prompt fixes**
     - Finalizing the master prompt so it delivers more consistency
