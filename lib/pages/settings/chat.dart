@@ -42,11 +42,11 @@ class ChatSettingsPageState extends State<ChatSettingsPage> {
                           mainAxisAlignment: MainAxisAlignment.start,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Category.settings(
+                            if (engine.currentChat != "0") Category.settings(
                                 title: engine.dict.value("chat_name"),
                                 context: context
                             ),
-                            cards.cardGroup([
+                            if (engine.currentChat != "0") cards.cardGroup([
                               if(!engine.isLoading)
                                 CardContents.doubleTap(
                                     title: engine.chats[engine.currentChat]?["name"]??engine.dict.value("new_chat"),
@@ -193,6 +193,66 @@ class ChatSettingsPageState extends State<ChatSettingsPage> {
                                 )
                             ]),
                             Category.settings(
+                                title: engine.dict.value("settings_ai"),
+                                context: context
+                            ),
+                            cards.cardGroup([
+                              CardContents.addretract(
+                                  title: engine.dict.value("temperature"),
+                                  subtitle: (engine.chats[engine.currentChat]?["chatTemperature"] ?? engine.temperature).toStringAsFixed(1),
+                                  actionAdd: (){
+                                    if((engine.chats[engine.currentChat]?["chatTemperature"] ?? engine.temperature) < 0.9){
+                                      setState(() {
+                                        engine.chats[engine.currentChat]!["chatTemperature"] = (engine.chats[engine.currentChat]?["chatTemperature"] ?? engine.temperature) + 0.1;
+                                      });
+                                      engine.saveChats();
+                                    }
+                                  },
+                                  actionRetract: (){
+                                    if((engine.chats[engine.currentChat]?["chatTemperature"] ?? engine.temperature) > 0.1){
+                                      setState(() {
+                                        engine.chats[engine.currentChat]!["chatTemperature"] = (engine.chats[engine.currentChat]?["chatTemperature"] ?? engine.temperature) - 0.1;
+                                      });
+                                      engine.saveChats();
+                                    }
+                                  }
+                              ),
+                              CardContents.turn(
+                                  title: engine.dict.value("add_time"),
+                                  subtitle: engine.dict.value("add_time_desc"),
+                                  action: (){
+                                    setState(() {
+                                      engine.chats[engine.currentChat]!["addCurrentTime"] = !(engine.chats[engine.currentChat]?["addCurrentTime"] ?? engine.addCurrentTimeToRequests);
+                                    });
+                                    engine.saveChats();
+                                  },
+                                  switcher: (value){
+                                    setState(() {
+                                      engine.chats[engine.currentChat]!["addCurrentTime"] = !(engine.chats[engine.currentChat]?["addCurrentTime"] ?? engine.addCurrentTimeToRequests);
+                                    });
+                                    engine.saveChats();
+                                  },
+                                  value: engine.chats[engine.currentChat]?["addCurrentTime"] ?? engine.addCurrentTimeToRequests
+                              ),
+                              CardContents.turn(
+                                  title: engine.dict.value("add_lang"),
+                                  subtitle: engine.dict.value("add_lang_desc"),
+                                  action: (){
+                                    setState(() {
+                                      engine.chats[engine.currentChat]!["shareLocale"] = !(engine.chats[engine.currentChat]?["shareLocale"] ?? engine.shareLocale);
+                                    });
+                                    engine.saveChats();
+                                  },
+                                  switcher: (value){
+                                    setState(() {
+                                      engine.chats[engine.currentChat]!["shareLocale"] = !(engine.chats[engine.currentChat]?["shareLocale"] ?? engine.shareLocale);
+                                    });
+                                    engine.saveChats();
+                                  },
+                                  value: engine.chats[engine.currentChat]?["shareLocale"] ?? engine.shareLocale
+                              ),
+                            ]),
+                            Category.settings(
                                 title: engine.dict.value("chat_prompt"),
                                 context: context
                             ),
@@ -243,11 +303,11 @@ class ChatSettingsPageState extends State<ChatSettingsPage> {
                                 }
                               )
                             ]),
-                            Category.settings(
+                            if (engine.currentChat != "0") Category.settings(
                                 title: engine.dict.value("chat_settings_other"),
                                 context: context
                             ),
-                            cards.cardGroup([
+                            if (engine.currentChat != "0") cards.cardGroup([
                               CardContents.turn(
                                   title: engine.dict.value("pin_chat"),
                                   subtitle: engine.dict.value("pin_chat_desc"),

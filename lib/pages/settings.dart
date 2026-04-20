@@ -82,9 +82,8 @@ class SettingsPageState extends State<SettingsPage> {
                                                           title: language["origin"],
                                                           subtitle: language["name"] == language["origin"] ? "" : language["name"],
                                                           action: () async {
-                                                            setState(() {
-                                                              engine.dict.saveLanguage(language["id"]);
-                                                            });
+                                                            await engine.dict.saveLanguage(language["id"]);
+                                                            setState(() {});
                                                             Navigator.of(dialogContext).pop();
                                                           }
                                                       );
@@ -94,10 +93,9 @@ class SettingsPageState extends State<SettingsPage> {
                                           ),
                                     );
                                   },
-                                  secondAction: (){
-                                    setState(() {
-                                      engine.dict.setSystemLanguage();
-                                    });
+                                  secondAction: () async {
+                                    await engine.dict.setSystemLanguage();
+                                    setState(() {});
                                   }
                               ),
                               CardContents.turn(
@@ -146,10 +144,10 @@ class SettingsPageState extends State<SettingsPage> {
                               ),
                               CardContents.tapIcon(
                                   title: engine.dict.value("prompt_manager_title"),
-                                  subtitle: engine.dict.value("system_prompt_desc"),
+                                  subtitle: engine.promptData.getPromptName(engine.config.defaultPromptId),
                                   icon: Icons.edit_note_rounded,
-                                  colorBG: Theme.of(context).colorScheme.tertiaryFixedDim,
-                                  color: Theme.of(context).colorScheme.onTertiaryFixed,
+                                  colorBG: Theme.of(context).colorScheme.primaryFixedDim,
+                                  color: Theme.of(context).colorScheme.onPrimaryFixed,
                                   action: () async {
                                     Navigator.push(
                                       context,
@@ -158,51 +156,6 @@ class SettingsPageState extends State<SettingsPage> {
                                     );
                                   }
                               ),
-                              CardContents.tap(
-                                title: engine.dict.value("default_prompt_picker"),
-                                subtitle: engine.promptData.getPromptName(engine.config.defaultPromptId),
-                                action: () {
-                                  showDialog(
-                                    context: context,
-                                    builder: (BuildContext dialogContext) => AlertDialog(
-                                      title: Text(engine.dict.value("select_prompt")),
-                                      content: Container(
-                                        constraints: BoxConstraints(maxHeight: 300),
-                                        child: SingleChildScrollView(
-                                          child: cards.cardGroup([
-                                            ...engine.promptData.defaultPrompts.keys.map((key) {
-                                              return CardContents.halfTap(
-                                                title: engine.promptData.defaultPrompts[key]["name"] ?? "Default",
-                                                subtitle: "System",
-                                                action: () {
-                                                  setState(() {
-                                                    engine.config.defaultPromptId = key;
-                                                  });
-                                                  engine.saveSettings();
-                                                  Navigator.pop(dialogContext);
-                                                }
-                                              );
-                                            }).toList().cast<Widget>(),
-                                            ...engine.promptData.userPrompts.keys.map((key) {
-                                              return CardContents.halfTap(
-                                                title: engine.promptData.userPrompts[key]["name"] ?? "Custom",
-                                                subtitle: "User",
-                                                action: () {
-                                                  setState(() {
-                                                    engine.config.defaultPromptId = key;
-                                                  });
-                                                  engine.saveSettings();
-                                                  Navigator.pop(dialogContext);
-                                                }
-                                              );
-                                            }).toList().cast<Widget>(),
-                                          ])
-                                        )
-                                      )
-                                    )
-                                  );
-                                }
-                              )
                             ]),
                             Category.settings(
                                 title: engine.dict.value("settings_resources"),
@@ -215,21 +168,13 @@ class SettingsPageState extends State<SettingsPage> {
                                   icon: Icons.dataset_linked_rounded,
                                   colorBG: Theme.of(context).colorScheme.primaryFixedDim,
                                   color: Theme.of(context).colorScheme.onPrimaryFixed,
-                                  action: (){
-                                    engine.resources.clear();
-                                    for(var resource in engine.promptEngine.resources){
-                                      if(resource["type"] == "link"){
-                                        if(engine.resources.containsKey(resource["collection"])){
-                                          engine.resources[resource["collection"]].add(resource);
-                                        }else{
-                                          engine.resources[resource["collection"]] = [resource];
-                                        }
-                                      }
-                                    }
+                                  action: () {
                                     Navigator.push(
                                       context,
-                                      MaterialPageRoute(builder: (context) => SettingsResources(),
-                                          settings: const RouteSettings(name: 'SettingsResources')),
+                                      MaterialPageRoute(
+                                        builder: (context) => SettingsResources(),
+                                        settings: const RouteSettings(name: 'SettingsResources'),
+                                      ),
                                     );
                                   }
                               )

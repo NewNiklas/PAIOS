@@ -68,44 +68,55 @@ class MyAppState extends State<MyApp> {
     return DynamicColorBuilder(builder: (lightColorScheme, darkColorScheme) {
       return MaterialApp(
         navigatorObservers: [
-          FirebaseAnalyticsObserver(analytics: analytics),
+          FirebaseAnalyticsObserver(
+            analytics: analytics,
+            nameExtractor: (settings) => settings.name,
+          ),
         ],
         theme: themeData(lightColorScheme ?? defaultLightColorScheme),
         darkTheme: themeData(darkColorScheme ?? defaultDarkColorScheme),
         themeMode: ThemeMode.system,
         debugShowCheckedModeBanner: kDebugMode,
-        home: LayoutBuilder(builder: (BuildContext context, BoxConstraints constraints) {
-          double scaffoldHeight = constraints.maxHeight;
-          double scaffoldWidth = constraints.maxWidth;
-          return Consumer<AIEngine>(builder: (context, engine, child) {
-            engine.cards = Cards(context: context);
-            return AnimatedCrossFade(
-                alignment: Alignment.center,
-                duration: const Duration(milliseconds: 500),
-                firstChild: AnimatedCrossFade(
-                  alignment: Alignment.center,
-                  duration: const Duration(milliseconds: 250),
-                  firstChild: SizedBox(
-                    height: scaffoldHeight,
-                    width: scaffoldWidth,
-                    child: IntroPage(),
-                  ),
-                  secondChild: SizedBox(
-                    height: scaffoldHeight,
-                    width: scaffoldWidth,
-                    child: ChatsPage(),
-                  ),
-                  crossFadeState: engine.firstLaunch? CrossFadeState.showFirst : CrossFadeState.showSecond,
-                ),
-                secondChild: Center(
-                  child: CircularProgressIndicator(
-                    strokeCap: StrokeCap.round,
-                  ),
-                ),
-              crossFadeState: engine.appStarted? CrossFadeState.showFirst : CrossFadeState.showSecond,
-            );
-          });
-        }),
+        initialRoute: 'ChatsPage',
+        onGenerateRoute: (settings) {
+          return MaterialPageRoute(
+            settings: settings,
+            builder: (context) {
+              return LayoutBuilder(builder: (BuildContext context, BoxConstraints constraints) {
+                double scaffoldHeight = constraints.maxHeight;
+                double scaffoldWidth = constraints.maxWidth;
+                return Consumer<AIEngine>(builder: (context, engine, child) {
+                  engine.cards = Cards(context: context);
+                  return AnimatedCrossFade(
+                      alignment: Alignment.center,
+                      duration: const Duration(milliseconds: 500),
+                      firstChild: AnimatedCrossFade(
+                        alignment: Alignment.center,
+                        duration: const Duration(milliseconds: 250),
+                        firstChild: SizedBox(
+                          height: scaffoldHeight,
+                          width: scaffoldWidth,
+                          child: IntroPage(),
+                        ),
+                        secondChild: SizedBox(
+                          height: scaffoldHeight,
+                          width: scaffoldWidth,
+                          child: ChatsPage(),
+                        ),
+                        crossFadeState: engine.firstLaunch? CrossFadeState.showFirst : CrossFadeState.showSecond,
+                      ),
+                      secondChild: Center(
+                        child: CircularProgressIndicator(
+                          strokeCap: StrokeCap.round,
+                        ),
+                      ),
+                    crossFadeState: engine.appStarted? CrossFadeState.showFirst : CrossFadeState.showSecond,
+                  );
+                });
+              });
+            },
+          );
+        },
       );
     });
   }

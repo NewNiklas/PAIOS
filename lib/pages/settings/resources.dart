@@ -44,22 +44,22 @@ class SettingsResourcesState extends State<SettingsResources> {
                       SliverToBoxAdapter(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: engine.resources.keys.toList().map((collection){
+                          children: engine.resourceData.grouped.keys.toList().map((collection) {
                             return Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Category.settings(
-                                    title: engine.dict.value(collection),
+                                    title: collection,
                                     context: context
                                 ),
                                 cards.cardGroup(
-                                    engine.resources[collection].map((resource){
+                                    engine.resourceData.grouped[collection]!.map((resource) {
                                   return CardContents.tap(
-                                      title: resource["name"],
-                                      subtitle: resource["value"].split("://")[1].split("/")[0],
+                                      title: resource["name"] ?? "",
+                                      subtitle: (resource["value"] ?? "").toString().replaceFirst(RegExp(r'^https?://'), '').split('/')[0],
                                       action: () async {
                                         await launchUrl(
-                                          Uri.parse(resource["value"]),
+                                          Uri.parse(resource["value"] ?? ""),
                                           mode: LaunchMode.externalApplication
                                         );
                                       }

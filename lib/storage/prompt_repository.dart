@@ -79,7 +79,7 @@ class PromptRepository {
   }
 
   String getPromptContent(String id) {
-    if (id == "system_default" || id.isEmpty) {
+    if (id.isEmpty) {
       return "";
     }
     if (userPrompts.containsKey(id)) {

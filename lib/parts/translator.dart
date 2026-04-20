@@ -28,6 +28,9 @@ class Dictionary {
   }
   
   setSystemLanguage() async {
+    final box = Hive.box('paios_storage');
+    // Remove the saved preference so decideLanguage() falls back to device locale on next boot
+    await box.delete("language");
     String deviceLocale = Platform.localeName.split("_")[0];
     for(int a = 0; a < languages.length;a++){
       if(languages[a]["id"] == deviceLocale){
@@ -82,7 +85,9 @@ class Dictionary {
         if(response.statusCode == 200) {
           languages = jsonDecode(response.body);
           box.put("cached_languages_json", response.body); // Update persistent cache
-          await decideLanguage();
+          // Only re-decide language if the user has no saved preference.
+          // If they saved one, keep it — never let the network refresh override it.
+          if (!box.containsKey("language")) await decideLanguage();
           
           for (int i = 0; i < languages.length; i++) {
             String langId = languages[i]["id"];
@@ -105,9 +110,17 @@ class Dictionary {
     }
     if(!dictionary[locale].containsKey(entry)){
       if(!dictionary["en"].containsKey(entry)){
-        return "!!! $entry";
+        if(kDebugMode) {
+          return "!!! $entry";
+        }else{
+          return entry;
+        }
       }
-      return "!${dictionary["en"][entry].toString()}!";
+      if(kDebugMode){
+        return "!${dictionary["en"][entry].toString()}!";
+      }else{
+        return dictionary["en"][entry].toString();
+      }
     }
     return dictionary[locale][entry].toString();
   }

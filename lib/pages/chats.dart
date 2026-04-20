@@ -121,14 +121,16 @@ class ChatsPageState extends State<ChatsPage> {
                     label: Text(engine.dict.value("new_chat")),
                     enableFeedback: true,
                     tooltip: engine.dict.value("new_chat"),
-                    onPressed: engine.isLoading?(){}:(){
+                    onPressed: engine.isLoading ? () {} : () {
                       engine.currentChat = "0";
                       engine.context.clear();
                       engine.contextSize = 0;
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => ChatPage(),
-                            settings: const RouteSettings(name: 'ChatPage')),
+                        MaterialPageRoute(
+                          builder: (context) => ChatPage(),
+                          settings: const RouteSettings(name: 'ChatPage'),
+                        ),
                       );
                     },
                   ),
@@ -219,7 +221,7 @@ class ChatsPageState extends State<ChatsPage> {
                             ),
                             cards.cardGroup(
                                 <Widget>[
-                                  ...engine.chats.keys.toList().reversed.map((key){
+                                  ...engine.chats.keys.toList().where((k) => k != "testing" && k != "0").toList().reversed.map((key){
                                     Map chat = engine.chats[key]??{
                                       "name": "Nonameyet",
                                       "tokens":  "0",
@@ -259,7 +261,7 @@ class ChatsPageState extends State<ChatsPage> {
                             ),
                             cards.cardGroup(
                               <Widget>[
-                                ...engine.chats.keys.toList().reversed.map((key){
+                                ...engine.chats.keys.toList().where((k) => k != "testing" && k != "0").toList().reversed.map((key){
                                   Map chat = engine.chats[key]??{
                                     "name": "Nonameyet",
                                     "tokens":  "0",

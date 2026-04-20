@@ -2,13 +2,13 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 
 class GenerationConfig {
-  final int maxTokens;
+  final int? maxTokens;
   final double? temperature;
   final int candidates;
-  const GenerationConfig({required this.maxTokens, this.temperature, this.candidates = 1});
+  const GenerationConfig({this.maxTokens, this.temperature, this.candidates = 1});
   Map<String, dynamic> toMap() {
     return {
-      'maxTokens': maxTokens,
+      if (maxTokens != null) 'maxTokens': maxTokens,
       'candidates': 1,
       if (temperature != null) 'temperature': temperature,
     };

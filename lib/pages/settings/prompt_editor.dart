@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../engine.dart';
 import '../support/elements.dart';
 
@@ -88,10 +89,6 @@ class PromptEditorPageState extends State<PromptEditorPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Category.settings(
-                                title: engine.dict.value("prompt_name"),
-                                context: context
-                            ),
                             cards.cardGroup([
                               if(!engine.isLoading)
                                 CardContents.doubleTap(
@@ -223,10 +220,7 @@ class PromptEditorPageState extends State<PromptEditorPage> {
                                       if(!recentTitles.contains(oldName)){
                                         recentTitles.add(oldName);
                                       }
-                                      
-                                      String composeRequest = "Summarize what this system prompt instructs the AI to do in a few words as a title:\n" + contentController.text;
-                                      
-                                      await engine.generatePromptTitle(composeRequest).then((output){
+                                      await engine.generatePromptTitle(contentController.text).then((output){
                                         newTitle = output.replaceAll('"', '');
                                       });
                                       setState(() {
@@ -264,7 +258,18 @@ class PromptEditorPageState extends State<PromptEditorPage> {
                                        // we can optionally auto-save, but let's rely on save button.
                                     },
                                 )
-                            )
+                            ),
+                            text.infoShort(
+                              title: engine.dict.value("prompt_md_desc"),
+                              subtitle: engine.dict.value("prompt_md_docs_link"),
+                              action: () async {
+                                await launchUrl(
+                                    Uri.parse('https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax'),
+                                    mode: LaunchMode.externalApplication
+                                );
+                              },
+                              context: context,
+                            ),
                           ],
                         ),
                       ),

@@ -257,9 +257,8 @@ class IntroPageState extends State<IntroPage> {
                                                         title: language["origin"],
                                                         subtitle: language["name"] == language["origin"] ? "" : language["name"],
                                                         action: () async {
-                                                          setState(() {
-                                                            engine.dict.locale = language["id"];
-                                                          });
+                                                          await engine.dict.saveLanguage(language["id"]);
+                                                          setState(() {});
                                                           Navigator.of(dialogContext).pop();
                                                         }
                                                     );

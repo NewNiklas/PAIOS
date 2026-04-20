@@ -50,6 +50,12 @@ class ChatRepository {
       "message": responseText,
     });
     
+    if (currentChat == "testing") {
+      lastPrompt = "";
+      notifyEngine();
+      return;
+    }
+
     await box.put("context", jsonEncode(context));
     await box.put("contextSize", contextSize);
     
@@ -80,6 +86,8 @@ class ChatRepository {
   }
 
   Future<void> saveChat(List conversation, {String chatID = "0"}) async {
+    if (chatID == "testing") return;
+    
     final box = Hive.box('paios_storage');
     if (chatID == "0") {
       chatID = DateTime.now().millisecondsSinceEpoch.toString();

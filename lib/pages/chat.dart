@@ -32,6 +32,9 @@ class ChatPageState extends State<ChatPage> {
                     padding: EdgeInsetsGeometry.only(left: 5),
                     child: IconButton(
                         onPressed: (){
+                          if (engine.currentChat == "testing") {
+                            engine.chats.remove("testing");
+                          }
                           engine.currentChat = "0";
                           engine.context.clear();
                           engine.contextSize = 0;
@@ -42,10 +45,11 @@ class ChatPageState extends State<ChatPage> {
                   ),
                   title: Text(engine.chats[engine.currentChat]?["name"]??engine.dict.value("new_chat")),
                   actions: [
-                    if(!(engine.currentChat=="0"))IconButton(
+                    if(engine.currentChat != "testing")IconButton(
                       icon: Icon(Icons.tune_rounded),
                       tooltip: engine.dict.value("chat_settings"),
-                      onPressed: engine.currentChat == "0"?null:() {
+                      onPressed: () {
+                        engine.chats[engine.currentChat] = engine.chats[engine.currentChat] ?? {};
                         showModalBottomSheet<void>(
                             context: context,
                             barrierLabel: engine.chats[engine.currentChat]?["name"],
@@ -99,7 +103,7 @@ class ChatPageState extends State<ChatPage> {
                                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                                 crossAxisAlignment: CrossAxisAlignment.start,
                                                 children: [
-                                                  Column(
+                                                   Column(
                                                     children: tWid.chatlog(
                                                         conversation: [
                                                           {
@@ -141,37 +145,37 @@ class ChatPageState extends State<ChatPage> {
                                                 ],
                                               )
                                                   : Column(
-                                                children: tWid.chatlog(
-                                                    conversation: engine.context,
-                                                    context: context,
-                                                    aiChunk: engine.responseText,
-                                                    lastUser: engine.lastPrompt
-                                                ),
+                                                children: [
+                                                  ...tWid.chatlog(
+                                                      conversation: engine.context,
+                                                      context: context,
+                                                      aiChunk: engine.responseText,
+                                                      lastUser: engine.lastPrompt
+                                                  ),
+                                                  // Chip shown ONLY between continuation rounds (waiting, not streaming new content)
+                                                  if (engine.isContinuing && engine.responseText == engine.combinedResponse)
+                                                    Align(
+                                                      alignment: Alignment.centerLeft,
+                                                      child: Padding(
+                                                        padding: const EdgeInsets.only(left: 12, top: 4, bottom: 4),
+                                                        child: Chip(
+                                                          avatar: SizedBox(
+                                                            width: 14,
+                                                            height: 14,
+                                                            child: CircularProgressIndicator(strokeWidth: 2),
+                                                          ),
+                                                          label: Text(engine.dict.value("model_continuing")),
+                                                          visualDensity: VisualDensity.compact,
+                                                          padding: EdgeInsets.zero,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                ],
                                               ),
                                             ],
                                           ),
                                         ),
                                       ),
-                                      Column(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Container(),
-                                          engine.isLoading
-                                              ? Padding(
-                                            padding: EdgeInsetsGeometry.symmetric(
-                                                horizontal: 10,
-                                                vertical: 0
-                                            ),
-                                            child: LinearProgressIndicator(
-                                              borderRadius: BorderRadius.circular(20),
-                                              value: engine.responseText == ""
-                                                  ? null
-                                                  : (engine.response.tokenCount!/engine.tokens)*1.25,
-                                            ),
-                                          )
-                                              : Container()
-                                        ],
-                                      )
                                     ],
                                   ),
                                 ),
@@ -191,10 +195,10 @@ class ChatPageState extends State<ChatPage> {
                                   await Future.delayed(Duration(milliseconds: 500));
                                   engine.scrollChatlog(Duration(milliseconds: 500));
                                 },
-                                readOnly: engine.isLoading,
+                                readOnly: engine.isLoading || engine.isContinuing,
                                 decoration: InputDecoration(
                                   isDense: true,
-                                  suffixIcon: engine.isLoading
+                                  suffixIcon: (engine.isLoading || engine.isContinuing)
                                       ? IconButton(
                                     icon: Icon(Icons.stop_rounded, size: 25,),
                                     tooltip: engine.dict.value("cancel_generate"),
@@ -211,10 +215,20 @@ class ChatPageState extends State<ChatPage> {
                                   hintText: engine.dict.value("prompt"),
                                   alignLabelWithHint: true,
                                   helperText: engine.isLoading && !(engine.responseText == "")
-                                      ? engine.dict.value("generating_hint").replaceAll("%seconds%", ((engine.response.generationTimeMs??10)/1000).toStringAsFixed(2)).replaceAll("%tokens%", engine.response.tokenCount.toString()).replaceAll("%tokenspersec%", (engine.response.tokenCount!.toInt()/((engine.response.generationTimeMs??10)/1000)).toStringAsFixed(2))
+                                      ? engine.dict.value("generating_hint")
+                                          .replaceAll("%seconds%", ((engine.cumulativeGenerationMs + (engine.response.generationTimeMs??0))/1000).toStringAsFixed(2))
+                                          .replaceAll("%tokens%", (engine.cumulativeTokenCount + (engine.response.tokenCount?.toInt()??0)).toString())
+                                          .replaceAll("%tokenspersec%", engine.cumulativeGenerationMs + (engine.response.generationTimeMs??0) > 0
+                                              ? ((engine.cumulativeTokenCount + (engine.response.tokenCount?.toInt()??0)) / ((engine.cumulativeGenerationMs + (engine.response.generationTimeMs??0))/1000)).toStringAsFixed(2)
+                                              : "0")
                                       : engine.responseText==""
                                       ? engine.dict.value("no_context_yet")
-                                      : engine.dict.value("generated_hint").replaceAll("%seconds%", ((engine.response.generationTimeMs??10)/1000).toStringAsFixed(2)).replaceAll("%tokens%", engine.response.text.split(" ").length.toString()).replaceAll("%tokenspersec%", (engine.response.tokenCount!.toInt()/((engine.response.generationTimeMs??10)/1000)).toStringAsFixed(2)),
+                                      : engine.dict.value("generated_hint")
+                                          .replaceAll("%seconds%", ((engine.cumulativeGenerationMs + (engine.response.generationTimeMs??0))/1000).toStringAsFixed(2))
+                                          .replaceAll("%tokens%", (engine.cumulativeTokenCount + (engine.response.tokenCount?.toInt()??0)).toString())
+                                          .replaceAll("%tokenspersec%", engine.cumulativeGenerationMs + (engine.response.generationTimeMs??0) > 0
+                                              ? ((engine.cumulativeTokenCount + (engine.response.tokenCount?.toInt()??0)) / ((engine.cumulativeGenerationMs + (engine.response.generationTimeMs??0))/1000)).toStringAsFixed(2)
+                                              : "0"),
                                 ),
                                 maxLines: 3,
                                 minLines: 1,

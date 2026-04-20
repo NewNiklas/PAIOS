@@ -15,6 +15,7 @@ import 'package:geminilocal/storage/app_config.dart';
 import 'package:geminilocal/storage/chat_repository.dart';
 import 'package:geminilocal/storage/migration.dart';
 import 'package:geminilocal/storage/prompt_repository.dart';
+import 'package:geminilocal/storage/resource_repository.dart';
 
 class AIEngine with md.ChangeNotifier {
   final gemini = GeminiNano();
@@ -45,9 +46,21 @@ class AIEngine with md.ChangeNotifier {
   bool appStarted = false;
   String testPrompt = "";
   Map modelInfo = {};
-  Map resources = {};
   List modelDownloadLog = [];
   bool ignoreContext = false;
+  bool isContinuing = false;
+  String _lastFinishReason = ""; // captured from streaming events, read at done
+  String _combinedResponse = ""; // accumulates across continuation calls
+  String get combinedResponse => _combinedResponse; // read-only access for UI
+  int _continuationCount = 0;    // how many continuations fired (for logging)
+  // Cumulative generation stats across all continuation rounds (exposed to UI)
+  int cumulativeGenerationMs = 0;
+  int cumulativeTokenCount = 0;
+  // Join-stitching state — resolved once per continuation round on first chunk
+  bool _firstContinuationChunk = true;
+  String _continuationJoinPrefix = "";  // space or newline to insert at join point
+  bool _continuationLowerFirst = false; // lowercase the first char of continuation
+  String _continuationStripPattern = ""; // regex to strip from start of cont text (e.g. duplicate code fence)
 
   md.ScrollController scroller = md.ScrollController();
 
@@ -55,11 +68,13 @@ class AIEngine with md.ChangeNotifier {
   late final ChatRepository chatData;
   late final AnalyticsService logger;
   late final PromptRepository promptData;
+  late final ResourceRepository resourceData;
 
   AIEngine() {
     config = AppConfig(notifyEngine: genericRefresh);
     logger = AnalyticsService(notifyEngine: genericRefresh);
     promptData = PromptRepository(notifyEngine: genericRefresh);
+    resourceData = ResourceRepository(notifyEngine: genericRefresh);
     chatData = ChatRepository(
       notifyEngine: genericRefresh,
       requestTitle: generateChatTitle,
@@ -142,6 +157,8 @@ class AIEngine with md.ChangeNotifier {
     promptEngine = Prompt(ghUrl: "https://github.com/${config.repo}");
     await promptData.initFromHive("https://raw.githubusercontent.com/${config.repo}/main");
     await promptEngine.initialize();
+    await log("init", "info", "Initializing the Resource repository");
+    await resourceData.initFromHive("https://raw.githubusercontent.com/${config.repo}/main");
     
     await log(
       "init",
@@ -560,14 +577,17 @@ class AIEngine with md.ChangeNotifier {
       String currentPromptId = chatData.chats.containsKey(currentChat) ? chatData.chats[currentChat]["promptId"] ?? config.defaultPromptId : config.defaultPromptId;
       String specificPromptText = promptData.getPromptContent(currentPromptId);
       
+      bool runAddTime = chatData.chats.containsKey(currentChat) && chatData.chats[currentChat].containsKey("addCurrentTime") ? chatData.chats[currentChat]["addCurrentTime"] : addCurrentTimeToRequests;
+      bool runShareLocale = chatData.chats.containsKey(currentChat) && chatData.chats[currentChat].containsKey("shareLocale") ? chatData.chats[currentChat]["shareLocale"] : shareLocale;
+      
       await promptEngine
           .generate(
             specificPromptText,
             context,
             modelInfo,
             currentLocale: dict.value("current_language"),
-            addTime: addCurrentTimeToRequests,
-            shareLocale: shareLocale,
+            addTime: runAddTime,
+            shareLocale: runShareLocale,
             ignoreInstructions: ignoreInstructions,
             ignoreContext: ignoreContext,
           )
@@ -616,6 +636,46 @@ class AIEngine with md.ChangeNotifier {
     notifyListeners();
   }
 
+  /// Re-initialises the session specifically for silent continuation.
+  /// Uses [generateContinuation] which embeds the original question + partial text
+  /// as a system directive — no user turn, so the model continues without addressing anyone.
+  Future<void> _initForContinuation(String partialText) async {
+    if (isInitializing) return;
+    isInitializing = true;
+    isError = false;
+    notifyListeners();
+    try {
+      String currentPromptId = chatData.chats.containsKey(currentChat) ? chatData.chats[currentChat]["promptId"] ?? config.defaultPromptId : config.defaultPromptId;
+      String specificPromptText = promptData.getPromptContent(currentPromptId);
+      bool runAddTime = chatData.chats.containsKey(currentChat) && chatData.chats[currentChat].containsKey("addCurrentTime") ? chatData.chats[currentChat]["addCurrentTime"] : addCurrentTimeToRequests;
+      bool runShareLocale = chatData.chats.containsKey(currentChat) && chatData.chats[currentChat].containsKey("shareLocale") ? chatData.chats[currentChat]["shareLocale"] : shareLocale;
+      final instruction = await promptEngine.generateContinuation(
+        specificPromptText,
+        modelInfo,
+        partialText,
+        lastPrompt, // original question so model knows when it's done
+        addTime: runAddTime,
+        shareLocale: runShareLocale,
+        currentLocale: dict.value("current_language"),
+      );
+      final initStatus = await gemini.init(instructions: instruction);
+      if (initStatus == null || initStatus.contains("Error")) {
+        await log("model", "error", "Continuation init failed: $initStatus");
+        analyzeError("ContinuationInit", initStatus ?? "null");
+      } else {
+        await log("model", "info", "Model initialised for continuation");
+        isAvailable = true;
+        isInitialized = true;
+      }
+    } catch (e) {
+      await log("model", "error", e.toString());
+      analyzeError("ContinuationInit", e);
+    } finally {
+      isInitializing = false;
+      notifyListeners();
+    }
+  }
+
   /// Cancels any ongoing generation
   Future<void> cancelGeneration() async {
     _aiSubscription?.cancel();
@@ -647,12 +707,22 @@ class AIEngine with md.ChangeNotifier {
     isLoading = true;
     isError = false;
     responseText = "";
+    _lastFinishReason = ""; // reset for new generation
+    _combinedResponse = ""; // reset accumulator
+    isContinuing = false;
+    _continuationCount = 0;
+    cumulativeGenerationMs = 0;
+    cumulativeTokenCount = 0;
     status = "Sending prompt...";
     notifyListeners();
 
+    final int runTokens = chatData.chats.containsKey(currentChat) && chatData.chats[currentChat].containsKey("chatTokens") ? chatData.chats[currentChat]["chatTokens"] : tokens;
+    double runTemperature = chatData.chats.containsKey(currentChat) && chatData.chats[currentChat].containsKey("chatTemperature") ? chatData.chats[currentChat]["chatTemperature"] : temperature;
+
     final stream = gemini.generateTextEvents(
       prompt: "User's request: ${prompt.text.trim()}",
-      config: GenerationConfig(maxTokens: tokens, temperature: temperature),
+      // No maxTokens — let the model generate freely; only OS timeout (reason 1) or natural stop (reason -100) will end it
+      config: GenerationConfig(temperature: runTemperature),
       stream: true,
     );
     lastPrompt = prompt.text.trim();
@@ -671,6 +741,10 @@ class AIEngine with md.ChangeNotifier {
           case AiEventStatus.streaming:
             isLoading = true;
             String? finishReason = event.response?.finishReason;
+            // Capture finishReason whenever the API reports one (it won't be on the done event)
+            if (finishReason != null && finishReason != "null" && finishReason.isNotEmpty) {
+              _lastFinishReason = finishReason;
+            }
             if (!(event.response?.finishReason == "null")) {
               switch (finishReason ?? "null") {
                 case "0":
@@ -727,6 +801,24 @@ class AIEngine with md.ChangeNotifier {
             break;
 
           case AiEventStatus.done:
+            // ── Prominent finishReason debug log ─────────────────────────────
+            // NOTE: _lastFinishReason is cached from streaming — the done event never carries it
+            final String? doneReason = _lastFinishReason.isEmpty ? null : _lastFinishReason;
+            if (kDebugMode) {
+              final String friendlyReason = switch (doneReason) {
+                "-100" => "STOP (natural end)",
+                "0"    => "MAX_TOKENS (token budget exhausted)",
+                "1"    => "OTHER (timeout or forced stop)",
+                null   => "null (no reason reported during streaming)",
+                _      => "UNKNOWN code: $doneReason",
+              };
+              print("╔═══════════════════════════════════════════╗");
+              print("║  GENERATION DONE  finishReason: $friendlyReason");
+              print("║  responseText length: ${responseText.length} chars");
+              print("╚═══════════════════════════════════════════╝");
+            }
+            await log("model", "info", "Generation done. finishReason=$doneReason");
+            // ─────────────────────────────────────────────────────────────────
             if (responseText == "") {
               if (errorRetry) {
                 if (event.response?.text == null) {
@@ -748,36 +840,44 @@ class AIEngine with md.ChangeNotifier {
                 await log("model", "error", responseText);
               }
             } else {
-              isLoading = false;
-              status = "Done";
-              addToContext();
-              prompt.clear();
-              await log(
-                "model",
-                "info",
-                dict
-                    .value("generated_hint")
-                    .replaceAll(
-                      "%seconds%",
-                      ((response.generationTimeMs ?? 10) / 1000)
-                          .toStringAsFixed(2),
-                    )
-                    .replaceAll(
-                      "%tokens%",
-                      response.text.split(" ").length.toString(),
-                    )
-                    .replaceAll(
-                      "%tokenspersec%",
-                      (response.tokenCount!.toInt() /
-                              ((response.generationTimeMs ?? 10) / 1000))
-                          .toStringAsFixed(2),
-                    ),
-              );
-              try {
-                scrollChatlog(Duration(milliseconds: 250));
-              } catch (e) {
-                if (kDebugMode) {
-                  print("Can't scroll: $e");
+              // Only continue on reason "1" (OS timeout — model was genuinely mid-answer).
+              // Reason "0" should no longer appear (maxTokens removed), but if it does we commit.
+              // Reason "-100" / null = natural STOP — always commit.
+              final bool shouldContinue = doneReason == "1"; // continue on timeout only
+
+              if (shouldContinue) {
+                // Model was cut off by timeout — snapshot stats, start silent continuation
+                cumulativeGenerationMs += response.generationTimeMs?.toInt() ?? 0;
+                cumulativeTokenCount += response.tokenCount?.toInt() ?? 0;
+                _continuationCount++;
+                _combinedResponse = responseText;
+                await log("model", "info", "Response timed out, triggering continuation #$_continuationCount");
+                if (kDebugMode) print("[AUTO-CONTINUE #$_continuationCount] timeout");
+                // Only inject partial AI text — no user turn (continuation uses system-level [CONTINUATION] prompt)
+                context.add({"user": "Gemini", "time": DateTime.now().millisecondsSinceEpoch.toString(), "message": _combinedResponse});
+                await _triggerContinuation();
+              } else {
+                // Natural stop or cap reached — commit
+                isContinuing = false;
+                isLoading = false;
+                status = "Done";
+                addToContext();
+                prompt.clear();
+                await log(
+                  "model",
+                  "info",
+                  dict
+                      .value("generated_hint")
+                      .replaceAll("%seconds%", ((cumulativeGenerationMs + (response.generationTimeMs ?? 0)) / 1000).toStringAsFixed(2))
+                      .replaceAll("%tokens%", (cumulativeTokenCount + (response.tokenCount?.toInt() ?? 0)).toString())
+                      .replaceAll("%tokenspersec%", cumulativeGenerationMs + (response.generationTimeMs ?? 0) > 0
+                          ? ((cumulativeTokenCount + (response.tokenCount?.toInt() ?? 0)) / ((cumulativeGenerationMs + (response.generationTimeMs ?? 0)) / 1000)).toStringAsFixed(2)
+                          : "0.00"),
+                );
+                try {
+                  scrollChatlog(Duration(milliseconds: 250));
+                } catch (e) {
+                  if (kDebugMode) print("Can't scroll: $e");
                 }
               }
             }
@@ -816,6 +916,186 @@ class AIEngine with md.ChangeNotifier {
         genericRefresh();
       },
     );
+  }
+
+  /// Returns true if [text] ends inside an open code fence (odd number of ``` markers).
+  bool _isInsideCodeBlock(String text) {
+    return RegExp(r'```').allMatches(text).length % 2 == 1;
+  }
+
+  /// Resolves the join rules between [partial] (accumulated so far) and the
+  /// first [newContent] chunk from the continuation session. Sets the join fields
+  /// so that subsequent streaming chunks are displayed correctly.
+  void _resolveJoin(String partial, String newContent) {
+    if (partial.isEmpty || newContent.isEmpty) return;
+    final String lastChar = partial[partial.length - 1];
+    final String firstChar = newContent[0];
+
+    if (_isInsideCodeBlock(partial)) {
+      // We're inside an open code block — the model may have re-opened it.
+      // Ensure a newline separator and strip any duplicate ``` opening.
+      _continuationJoinPrefix = (lastChar == '\n') ? '' : '\n';
+      // Match things like: ```php\n  or  ```\n  or  ``` at start
+      _continuationStripPattern = r'^```[a-zA-Z0-9]*\n?';
+      _continuationLowerFirst = false;
+    } else {
+      // Plain prose join
+      final bool endsWithBoundary = lastChar == ' ' || lastChar == '\n';
+      final bool startsWithBoundary = firstChar == ' ' || firstChar == '\n';
+      if (!endsWithBoundary && !startsWithBoundary) {
+        // No whitespace at join point — add a space
+        _continuationJoinPrefix = ' ';
+        // Only lowercase if the first char is a letter (not a symbol or digit)
+        final bool isLetter = RegExp(r'[A-Z]').hasMatch(firstChar);
+        _continuationLowerFirst = isLetter;
+      }
+      // If partial ends with punctuation like . ! ? the model likely started a
+      // new sentence correctly — leave capitalisation alone.
+      final bool endsWithSentence = '.!?'.contains(lastChar);
+      if (endsWithSentence) {
+        _continuationLowerFirst = false;
+      }
+    }
+  }
+
+  /// Continues a generation that was cut off (finishReason 0=MAX_TOKENS or 1=OTHER/timeout).
+  /// One temporary context entry (partial Gemini turn) must already be in [context] when called.
+  /// The model will see its own partial answer and continue — no user "please continue" turn,
+  /// so it won't respond to a conversational prompt.
+  Future<void> _triggerContinuation() async {
+    isContinuing = true;
+    _lastFinishReason = "";
+    _firstContinuationChunk = true;   // reset join state for this round
+    _continuationJoinPrefix = "";
+    _continuationLowerFirst = false;
+    _continuationStripPattern = "";
+    // Show full accumulated text immediately while continuation fires up
+    responseText = _combinedResponse;
+    notifyListeners();
+
+    await _aiSubscription?.cancel();
+    // Use the continuation-specific init: system-level [CONTINUATION] directive,
+    // no user turn, so the model simply outputs more text without addressing anyone
+    await _initForContinuation(_combinedResponse);
+
+    final double runTemperature = chatData.chats.containsKey(currentChat) && chatData.chats[currentChat].containsKey("chatTemperature") ? chatData.chats[currentChat]["chatTemperature"] : temperature;
+
+    // Send a minimal system cue — the actual instruction is in the system prompt
+    // This is NOT shown to the user and does NOT appear as a user message in context
+    final stream = gemini.generateTextEvents(
+      prompt: "Continue.",
+      config: GenerationConfig(temperature: runTemperature), // no token cap
+      stream: true,
+    );
+
+    _aiSubscription = stream.listen(
+      (AiEvent event) async {
+        switch (event.status) {
+          case AiEventStatus.loading:
+            status = dict.value("waiting_for_AI");
+            notifyListeners();
+            break;
+
+          case AiEventStatus.streaming:
+            final String? fr = event.response?.finishReason;
+            if (fr != null && fr != "null" && fr.isNotEmpty) {
+              _lastFinishReason = fr;
+            }
+            if (event.response != null) {
+              response = event.response!;
+              String contText = event.response!.text;
+              // Resolve join rules once on the first chunk
+              if (_firstContinuationChunk && contText.isNotEmpty) {
+                _firstContinuationChunk = false;
+                _resolveJoin(_combinedResponse, contText);
+              }
+              // Strip duplicate code-fence opening if detected
+              if (_continuationStripPattern.isNotEmpty) {
+                contText = contText.replaceFirst(RegExp(_continuationStripPattern), '');
+              }
+              // Lowercase first char if needed
+              if (_continuationLowerFirst && contText.isNotEmpty) {
+                contText = contText[0].toLowerCase() + contText.substring(1);
+              }
+              // Seamlessly prepend everything accumulated before this call
+              responseText = _combinedResponse + _continuationJoinPrefix + contText;
+            }
+            try { scrollChatlog(Duration(milliseconds: 250)); } catch (_) {}
+            break;
+
+          case AiEventStatus.done:
+            final String? contDoneReason = _lastFinishReason.isEmpty ? null : _lastFinishReason;
+            // Update the accumulator
+            _combinedResponse = responseText;
+            // Note: stats are only added to cumulative when RECURSING (see cutAgain branch).
+            // On the commit path we leave them in response.x so the UI formula
+            // cumulative + response.x is always correct without double-counting.
+            // Remove the temp partial AI context entry (1 entry only, no user turn)
+            if (context.isNotEmpty) {
+              context.removeLast();
+            }
+            if (kDebugMode) print("[AUTO-CONTINUE DONE] reason=$contDoneReason");
+            await log("model", "info", "Continuation done. finishReason=$contDoneReason");
+
+            final bool cutAgain = contDoneReason == "1"; // continue on timeout only
+
+            if (cutAgain) {
+              // Snapshot this session's stats into cumulative before starting the next round
+              cumulativeGenerationMs += response.generationTimeMs?.toInt() ?? 0;
+              cumulativeTokenCount += response.tokenCount?.toInt() ?? 0;
+              _continuationCount++;
+              context.add({"user": "Gemini", "time": DateTime.now().millisecondsSinceEpoch.toString(), "message": _combinedResponse});
+              await _triggerContinuation();
+            } else {
+              // Commit — cumulative stays as-is; UI shows cumulative + response.x = total
+              isContinuing = false;
+              isLoading = false;
+              status = "Done";
+              addToContext();
+              prompt.clear();
+            }
+            break;
+
+          case AiEventStatus.error:
+            isContinuing = false;
+            isLoading = false;
+            isError = true;
+            status = "Error during continuation";
+            // Save whatever we accumulated so user doesn't lose it
+            if (_combinedResponse.isNotEmpty) {
+              responseText = _combinedResponse;
+              addToContext();
+              prompt.clear();
+            } else {
+              responseText = event.error ?? "Continuation failed";
+              await log("model", "error", responseText);
+            }
+            break;
+        }
+        genericRefresh();
+      },
+      onError: (e) async {
+        isContinuing = false;
+        isLoading = false;
+        await log("model", "error", "Continuation stream error: $e");
+        if (_combinedResponse.isNotEmpty) {
+          responseText = _combinedResponse;
+          addToContext();
+          prompt.clear();
+        } else {
+          analyzeError("Continuation", e);
+        }
+        genericRefresh();
+      },
+      onDone: () {
+        if (!isError && !isContinuing) {
+          isLoading = false;
+          status = "Stream complete";
+        }
+        genericRefresh();
+      },
+    );
+
   }
 
   /// Clean up resources

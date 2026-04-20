@@ -1,7 +1,3 @@
-import 'dart:convert';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
-import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:collection/collection.dart';
@@ -10,10 +6,6 @@ class Prompt{
   DeepCollectionEquality mapEquality = const DeepCollectionEquality();
   Map appInfo = {};
   String ghUrl = "";
-  String basePrompt = "";
-  List resources = [];
-  bool usingOnlinePrompt = false;
-  bool usingOnlineResources = false;
 
   Prompt._internal(this.ghUrl,);
   factory Prompt({required String ghUrl}){
@@ -31,134 +23,153 @@ class Prompt{
 
   initialize() async {
     appInfo = await getAppData();
-    await rootBundle.loadString('assets/system_prompt.txt').then((systemprompt) async {
-      basePrompt = systemprompt;
-    });
-    await rootBundle.loadString('assets/additional_resources.json').then((resourcelist) async {
-      resources = jsonDecode(resourcelist);
-    });
-    if(!kDebugMode) {
-      try {
-      final response1 = await http.get(
-        Uri.parse("${ghUrl.replaceAll("github", "raw.githubusercontent")}/main/assets/system_prompt.json"),
-      );
-      if (response1.statusCode == 200) {
-        usingOnlinePrompt = true;
-        if (!(basePrompt == response1.body)) {
-          basePrompt = response1.body;
-        }
-      }
-    }catch(e){
-        print("Falling back to offline Master Prompt! Error: $e");
-      }
-      try {
-        final response2 = await http.get(
-          Uri.parse("${ghUrl.replaceAll("github", "raw.githubusercontent")}/main/assets/additional_resources.json"),
-        );
-        if (response2.statusCode == 200) {
-          usingOnlineResources = true;
-          if (!mapEquality.equals(resources, jsonDecode(response2.body))) {
-            resources = jsonDecode(response2.body);
-          }
-        }
-      }catch(e){
-        print("Falling back to offline Resources! Error: $e");
-      }
-    }
   }
 
-  Future<String> generate(String userprompt, List chatlog, Map modelInfo, {bool addTime = false, bool shareLocale = false, String currentLocale = "en", bool ignoreInstructions = false, bool ignoreContext = false}) async {
-    String output = basePrompt;
-    /// Static data section
-    output = output.replaceAll("%modelversion%", modelInfo["version"]);
-    output = output.replaceAll("%devname%", "Puzzak");
-    output = output.replaceAll("%appname%", appInfo["name"]);
-    output = output.replaceAll("%appversion%", appInfo["version"]);
-    output = output.replaceAll("%ghrepolink%", ghUrl);
-    /// Dynamic rules section
-    ///Rule "if user toggled something tell model about it
-    if(addTime || shareLocale || userprompt.isNotEmpty){
-      String localRules = "\n\n## 4. DATA & INSTRUCTION RULES";
-      if(shareLocale){
-        output = output.replaceAll("%languagerule%", "");
-        localRules = "$localRules\n- You MUST respond ONLY in the $currentLocale language unless user asks you to use another language";
-      }else{
-        output = output.replaceAll("%languagerule%", "");
+  Future<String> generate(
+    String userprompt,
+    List chatlog,
+    Map modelInfo, {
+    bool addTime = false,
+    bool shareLocale = false,
+    String currentLocale = "en",
+    bool ignoreInstructions = false,
+    bool ignoreContext = false,
+  }) async {
+    // Used only for title generation — skip everything
+    if (ignoreContext) return "";
+
+    // ignoreInstructions: bare conversation wrapper only (no system prompt)
+    if (ignoreInstructions) {
+      if (chatlog.isEmpty) return "";
+      String bare = "You are having a conversation with the User.\n"
+          "Don't prepend \"Gemini\" or a timestamp before your answer. Only reply with your answer.\n\n"
+          "### [CHAT HISTORY]";
+      for (var line in chatlog) {
+        bare += "\n - ${line["user"]} (${DateFormat('dd/MM/yyyy, HH:mm').format(DateTime.fromMillisecondsSinceEpoch(int.parse(line["time"])))}) : ${line["message"]}";
       }
-      if(addTime){
-        output = output.replaceAll("%datetimerule%", "");
-        localRules = "$localRules\n- You MUST use the \"Current Time\" from \"[CONTEXTUAL DATA]\" as your internal knowledge of the date and time. Do not state the time unless the user asks for it.\n- You MUST NOT use the Current Time as a date of any factual or historical questions.\n- The Current Time is ONLY for direct user convenience, such as telling user time and questions about \"How long ago was...?\"";
-      }else{
-        output = output.replaceAll("%datetimerule%", "");
-      }
-      if(userprompt.isNotEmpty){
-        localRules = "$localRules\n- You MUST follow all instructions in the [USER INSTRUCTIONS] section.\nYou MUST always prioritize instructions from the [USER INSTRUCTIONS] section over all other rules.";
-        localRules = "$localRules\n\n### [USER INSTRUCTIONS]\n$userprompt";
-        output = output.replaceAll("%userinstructionrule%", "");
-      }
-      output = output.replaceAll("%datainstructionrules%", localRules);
-    }else{
-      output = output.replaceAll("%datainstructionrules%", "");
-      output = output.replaceAll("%languagerule%", "");
-      output = output.replaceAll("%datetimerule%", "");
-      output = output.replaceAll("%userinstructionrule%", "");
+      return bare;
     }
 
-    ///Rule Contextual Data (time and locale)
-    if(addTime || shareLocale){
-      String localContextData = "\n\n### [CONTEXTUAL DATA]";
-      if(addTime){
-        localContextData = "$localContextData\n - Current Time: ${DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.now())}";
-      }
-      if(shareLocale){
-        localContextData = "$localContextData\n - Language: $currentLocale";
-      }
-      output = output.replaceAll("%contextdata%", "");
-      output = output.replaceAll("%contextdataheader%", localContextData);
-    }else{
-      output = output.replaceAll("%contextdataheader%", "");
-      output = output.replaceAll("%contextdata%", "");
-    }
-    ///Resources
-    String compileResources = "\n\n### [RESOURCES]";
-    for (var line in resources){
-      compileResources = "$compileResources\n - ${line["name"]}: ${line["value"]}";
-    }
-    output = output.replaceAll(
-        "%additionalresources%",
-        compileResources
-    );
+    // ── 1. System instructions block ─────────────────────────────────────────
+    String output = "## [SYSTEM INSTRUCTIONS]\n$userprompt";
 
-    /// Rule "if we don't have context we don't need some instructions":
-    if(chatlog.isEmpty){
-      output = output.replaceAll("%chathistoryrules%", "");
-      output = output.replaceAll("%chatlog%", "");
-      if(ignoreInstructions){
-        output = "";
-      }
-    }
-    else{
+    // Replace static values that may appear in any prompt (e.g. system_default.md)
+    output = output
+        .replaceAll("%modelversion%", modelInfo["version"] ?? "Unknown")
+        .replaceAll("%devname%", "Puzzak")
+        .replaceAll("%appname%", appInfo["name"] ?? "PAIOS")
+        .replaceAll("%appversion%", appInfo["version"] ?? "")
+        .replaceAll("%ghrepolink%", ghUrl);
 
-      String compileChatlog = "\n\n### [CHAT HISTORY]";
-      for (var line in chatlog){
-        compileChatlog = "$compileChatlog\n - ${line["user"]} (${DateFormat('dd/MM/yyyy, HH:mm').format(DateTime.fromMillisecondsSinceEpoch(int.parse(line["time"])))}): ${line["message"]}";
+    // Strip any leftover legacy placeholders so they don't confuse the model
+    output = output.replaceAll(RegExp(r'%\w+%'), '');
+
+
+    if (addTime || shareLocale) {
+      String contextData = "\n\n### [CONTEXTUAL DATA]";
+      if (addTime) {
+        contextData += "\n - Current Time: ${DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.now())}";
       }
-      output = output.replaceAll(
-          "%chathistoryrules%",
-          "- You MUST NOT quote the \"User:\" or \"Gemini:\" markers from the history. They are for your context only.\n"
-              "- Focus only on answering the user's LATEST prompt, using the chat history for context."
-      );
-      if(ignoreInstructions){
-        output = "You are having a conversation with the User.\nDon't append \"Gemini\" and time before your answer, don't give an explanation. Only reply with what you are answering the user with.\nBelow is your conversation history:$compileChatlog";
-      }else{
-        output = output.replaceAll(
-            "%chatlog%",
-            compileChatlog
-        );
+      if (shareLocale) {
+        contextData += "\n - Language: $currentLocale";
+      }
+      output += contextData;
+    }
+
+    // ── 4. Data & instruction rules ───────────────────────────────────────────
+    List<String> rules = [];
+    if (shareLocale) {
+      rules.add("You MUST respond ONLY in the $currentLocale language unless the user asks you to switch.");
+    }
+    if (addTime) {
+      rules.add("You MUST use the \"Current Time\" from [CONTEXTUAL DATA] as your knowledge of the current date and time. Do not volunteer the time unless the user asks.");
+      rules.add("You MUST NOT use Current Time as the date for factual or historical questions.");
+      rules.add("Current Time is only for direct user convenience, e.g. telling the time or answering \"how long ago was...?\".");
+    }
+    if (rules.isNotEmpty) {
+      output += "\n\n## [DATA & INSTRUCTION RULES]";
+      for (var rule in rules) {
+        output += "\n - $rule";
       }
     }
-    if(ignoreContext){output = "";}
+
+    // ── 5. Chat history ───────────────────────────────────────────────────────
+    if (chatlog.isNotEmpty) {
+      output += "\n\n### [CHAT HISTORY]"
+          "\n - Do NOT quote the \"User:\" or \"Gemini:\" markers — they are context markers for you only."
+          "\n - Focus on the user's LATEST message, using the history only for context.";
+      for (var line in chatlog) {
+        output += "\n - ${line["user"]} (${DateFormat('dd/MM/yyyy, HH:mm').format(DateTime.fromMillisecondsSinceEpoch(int.parse(line["time"])))}) : ${line["message"]}";
+      }
+    }
+
     return output;
   }
 
+  /// Builds a system prompt for silent continuation of a truncated response.
+  ///
+  /// There is NO user turn — the model gets a [CONTINUATION] system directive
+  /// with the original question AND the partial text it already wrote, so it
+  /// can tell when its answer is semantically complete and stop on its own.
+  Future<String> generateContinuation(
+    String userprompt,
+    Map modelInfo,
+    String partialText,
+    String originalQuestion, {
+    bool addTime = false,
+    bool shareLocale = false,
+    String currentLocale = "en",
+  }) async {
+    // Same system persona
+    String output = "## [SYSTEM INSTRUCTIONS]\n$userprompt";
+    output = output
+        .replaceAll("%modelversion%", modelInfo["version"] ?? "Unknown")
+        .replaceAll("%devname%", "Puzzak")
+        .replaceAll("%appname%", appInfo["name"] ?? "PAIOS")
+        .replaceAll("%appversion%", appInfo["version"] ?? "")
+        .replaceAll("%ghrepolink%", ghUrl);
+    output = output.replaceAll(RegExp(r'%\w+%'), '');
+
+    if (addTime || shareLocale) {
+      String contextData = "\n\n### [CONTEXTUAL DATA]";
+      if (addTime) {
+        contextData += "\n - Current Time: ${DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.now())}";
+      }
+      if (shareLocale) {
+        contextData += "\n - Language: $currentLocale";
+      }
+      output += contextData;
+    }
+
+    List<String> rules = [];
+    if (shareLocale) {
+      rules.add("You MUST respond ONLY in the $currentLocale language unless the user asks you to switch.");
+    }
+    if (addTime) {
+      rules.add("You MUST use the \"Current Time\" from [CONTEXTUAL DATA] as your knowledge of the current date and time. Do not volunteer the time unless the user asks.");
+    }
+    if (rules.isNotEmpty) {
+      output += "\n\n## [DATA & INSTRUCTION RULES]";
+      for (var rule in rules) {
+        output += "\n - $rule";
+      }
+    }
+
+    // System-level continuation — includes the original question so the model
+    // knows WHAT it's answering and can recognise when the answer is complete.
+    output += "\n\n## [CONTINUATION]\n"
+        "The user's original question was: \"$originalQuestion\"\n"
+        "Your response was interrupted by a system timeout before you finished answering it.\n"
+        "Rules:\n"
+        " - Output ONLY the direct continuation of the partial text below.\n"
+        " - Do NOT restart, summarise, or repeat content already in the partial text.\n"
+        " - Do NOT add any preamble, greeting, or acknowledgment.\n"
+        " - Pick up EXACTLY where the partial text ends — continue mid-sentence if necessary.\n"
+        " - Once your answer to the original question is complete, STOP. Do not pad or extend.\n"
+        "--- PARTIAL TEXT (continue from here) ---\n"
+        "$partialText\n"
+        "--- END OF PARTIAL TEXT ---";
+
+    return output;
+  }
 }

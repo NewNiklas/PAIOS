@@ -45,14 +45,10 @@ class ModelSettingsState extends State<ModelSettings> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
 
-                            Category.settings(
-                                title: engine.dict.value("settings_ai"),
-                                context: context
-                            ),
                             cards.cardGroup([
                               CardContents.addretract(
                                   title: engine.dict.value("temperature"),
-                                  subtitle: engine.temperature.toStringAsFixed(1),
+                                  subtitle: engine.dict.value("temperature_desc").replaceAll("%value%", engine.temperature.toStringAsFixed(1)),
                                   actionAdd: (){
                                     if(engine.temperature < 0.9){
                                       setState(() {
@@ -70,28 +66,6 @@ class ModelSettingsState extends State<ModelSettings> {
                                     }
                                   }
                               ),
-                              CardContents.addretract(
-                                  title: engine.dict.value("tokens"),
-                                  subtitle: engine.tokens.toString(),
-                                  actionAdd: engine.tokens > 225?(){}:(){
-                                    setState(() {
-                                      engine.tokens = engine.tokens + 32;
-                                    });
-                                    engine.saveSettings();
-                                  },
-                                  actionRetract: engine.tokens < 63?(){}:(){
-                                    setState(() {
-                                      engine.tokens = engine.tokens - 32;
-                                    });
-                                    engine.saveSettings();
-                                  }
-                              ),
-                            ]),
-                            Category.settings(
-                                title: engine.dict.value("shared_data"),
-                                context: context
-                            ),
-                            cards.cardGroup([
                               CardContents.turn(
                                   title: engine.dict.value("add_time"),
                                   subtitle: engine.dict.value("add_time_desc"),
@@ -125,31 +99,6 @@ class ModelSettingsState extends State<ModelSettings> {
                                     engine.saveSettings();
                                   },
                                   value: engine.shareLocale
-                              ),
-                            ]),
-                            Category.settings(
-                                title: engine.dict.value("reset_model_settings"),
-                                context: context
-                            ),
-                            cards.cardGroup([
-                              CardContents.tap(
-                                  title: engine.dict.value("reset_model_prompt"),
-                                  subtitle: engine.instructions.text.isEmpty?engine.dict.value("reset_model_prompt_desc"):"",
-                                  action: engine.instructions.text.isEmpty?(){}:(){
-                                    engine.instructions.clear();
-                                    engine.saveSettings();
-                                    setState(() {});
-                                  }
-                              ),
-                              CardContents.tap(
-                                  title: engine.dict.value("reset_model_params"),
-                                  subtitle: engine.dict.value("reset_model_params_desc"),
-                                  action: () async {
-                                    engine.temperature = 0.7;
-                                    engine.tokens = 256;
-                                    await engine.saveSettings();
-                                    setState(() {});
-                                  }
                               ),
                             ]),
                             text.info(
