@@ -5,7 +5,7 @@
   - `version` Downstream version of this change
 
 ---
-## Phase 1 `AI Core - Basic`
+## Phase 1 `AI Core - Basic` 8/15
  - [x] **Release** `1.0.0`
     - Text-only interface for the AI Core API (Gemini Nano / Flan T-5) implementation, Play Store and source release
  - [x] **UI and UX** `1.0.1`
@@ -16,7 +16,7 @@
     - Optional analytics and crash reporting, logging, issue fixes in UI and backend
  - [x] **Additional features** `~1.1.6`, `1.1.7`
     - Per-chat personas, temperature and token limit settings, etc. 
- - [ ] **Generation extension** `~1.1.7`
+ - [x] **Generation extension** `~1.1.7`, `1.1.8`
     - Workaround for 25s response generation time that ends answers prematurely
  - [ ] **AICore controls**
     - Ability to select test Nano versions and update track, maybe remove 25s limit entirely
@@ -24,12 +24,12 @@
     - Viewer for Google documentation on AICore with article browser
  - [ ] **Contributions and open-source licenses**
     - Show some respect to developers who made this possible
- - [ ] **Change in storage and updates** `~1.1.6`
+ - [x] **Change in storage and updates** `~1.1.6`, `~1.1.8`
     - Use Firebase Remote Config for delivering data updates and storage instead of GitHub, move to a real DB instead of shared prefs
     - It would look like Remote Config would not work for collaboration (prompts and translations) so only the *config* part will move there
  - [ ] **GitHub issue and update browser**
     - A neat dashboard of contributions and issue list from this repo, in-app
- - [x] **Master Prompt selector and editor** `~1.1.6`, `1.1.7`
+ - [x] **Master Prompt selector and editor** `~1.1.6`, `1.1.7`, `1.1.8`
     - Collection of different Master Prompts and ability to create own ones
  - [ ] **Master Prompt fixes**
     - Finalizing the master prompt so it delivers more consistency
@@ -39,7 +39,7 @@
     - Polishing and fixing issues, supporting users and optimisations
 
 
-## Phase 2 `AI Core - Improved`
+## Phase 2 `AI Core - Improved` 0/4
  - [ ] **Agentism**
     - Add agentic and RAG capabilities to the model with tool use loops, tool usage protocol
  - [ ] **Context expansion**
@@ -49,7 +49,7 @@
 - [ ] **Ephemeral Context**
     - Implementing a "Short-Term Memory" buffer for heavy data (files/logs) that doesn't pollute the long-term chat history.
 
-## Phase 3 `Model-agnosticizm`
+## Phase 3 `Model-agnosticizm` 0/3
  - [ ] **Custom models**
     - Allow users to set up and run custom models (like Gemma 2B) besides Gemini Nano for redundancy
  - [ ] **Connectivity**
@@ -58,7 +58,7 @@
  - [ ] **Failover**
     - Auto-switch to local model if the remote connection drops.
 
-## Phase 4 `PAIOS`
+## Phase 4 `PAIOS` 0/∞
  - [ ] **File System Access**
     - Read access to files on the device, in the network or online for more capabilities
  - [ ] **Scripting**
